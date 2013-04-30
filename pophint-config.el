@@ -38,16 +38,19 @@
 ;;; Configuration:
 ;; 
 ;; ;; When set-mark-command, start pop-up hint automatically.
-;; (pophint:set-automatically-when-marking t)
+;; (pophint-config:set-automatically-when-marking t)
 ;; 
 ;; ;; When you select the shown hint-tip after set-mark-command, do yank immediately.
 ;; (pophint-config:set-yank-immediately-when-marking t)
 ;; 
 ;; ;; When isearch, start pop-up hint automatically after exit isearch.
-;; (pophint:set-automatically-when-isearch t)
+;; (pophint-config:set-automatically-when-isearch t)
 ;; 
 ;; ;; When start searching the end point of RangeYank, layout the window position temporarily.
 ;; (pophint-config:set-relayout-when-rangeyank-start t)
+;; 
+;; ;; If you want to start some action immediately, bind key for the action.
+;; (define-key global-map (kbd "C-M-y") 'pophint:do-flexibly-yank)
 
 ;;; Customization:
 ;; 
@@ -145,37 +148,12 @@
 ;;;;;;;;;;;;;;;;;;;;;;;
 ;; Add global source
 
-;; URL or Filepath
-(defvar pophint-config:regexp-url-or-path (rx-to-string `(and bow (group (? (+ (any "a-zA-Z")) ":") "/"))))
-(pophint:defsource
-  :name "url-or-path"
-  :description "Format like URL or Filepath."
-  :source '((shown . "Url/Path")
-            (method . ((lambda ()
-                         (when (and (not (eq (pophint:get-current-direction) 'backward))
-                                    (functionp 'ffap-guesser))
-                           (loop while (re-search-forward pophint-config:regexp-url-or-path nil t)
-                                 for startpt = (match-beginning 1)
-                                 for guess = (ffap-guesser)
-                                 if guess
-                                 return (progn
-                                          (pophint--trace "found url/path. pt:[%s] value:[%s]" startpt guess)
-                                          (make-pophint:hint :startpt startpt
-                                                             :endpt (+ startpt (length guess))
-                                                             :value guess)))))
-                       (lambda ()
-                         (when (and (not (eq (pophint:get-current-direction) 'forward))
-                                    (functionp 'ffap-guesser))
-                           (loop while (re-search-backward pophint-config:regexp-url-or-path nil t)
-                                 for startpt = (match-beginning 1)
-                                 for guess = (ffap-guesser)
-                                 if guess
-                                 return (progn
-                                          (pophint--trace "found url/path. pt:[%s] value:[%s]" startpt guess)
-                                          (make-pophint:hint :startpt startpt
-                                                             :endpt (+ startpt (length guess))
-                                                             :value guess)))))))))
-(add-to-list 'pophint:global-sources 'pophint:source-url-or-path t)
+;; Symbol
+(pophint:defsource :name "symbol"
+                   :description "Symbol."
+                   :source '((shown . "Sym")
+                             (regexp . "\\_<.+?\\_>")))
+(add-to-list 'pophint:global-sources 'pophint:source-symbol t)
 
 ;; Quoted range
 (defvar pophint-config:quote-chars '("\"" "'" "`"))
@@ -231,6 +209,38 @@ It's a buffer local variable and list like `pophint-config:quote-chars'."
                                    if (and (stringp value) (not (string= value "")))
                                    return (make-pophint:hint :startpt startpt :endpt endpt :value value)))))))))
 (add-to-list 'pophint:global-sources 'pophint:source-quoted t)
+
+;; URL or Filepath
+(defvar pophint-config:regexp-url-or-path (rx-to-string `(and bow (group (? (+ (any "a-zA-Z")) ":") "/"))))
+(pophint:defsource
+  :name "url-or-path"
+  :description "Format like URL or Filepath."
+  :source '((shown . "Url/Path")
+            (method . ((lambda ()
+                         (when (and (not (eq (pophint:get-current-direction) 'backward))
+                                    (functionp 'ffap-guesser))
+                           (loop while (re-search-forward pophint-config:regexp-url-or-path nil t)
+                                 for startpt = (match-beginning 1)
+                                 for guess = (ffap-guesser)
+                                 if guess
+                                 return (progn
+                                          (pophint--trace "found url/path. pt:[%s] value:[%s]" startpt guess)
+                                          (make-pophint:hint :startpt startpt
+                                                             :endpt (+ startpt (length guess))
+                                                             :value guess)))))
+                       (lambda ()
+                         (when (and (not (eq (pophint:get-current-direction) 'forward))
+                                    (functionp 'ffap-guesser))
+                           (loop while (re-search-backward pophint-config:regexp-url-or-path nil t)
+                                 for startpt = (match-beginning 1)
+                                 for guess = (ffap-guesser)
+                                 if guess
+                                 return (progn
+                                          (pophint--trace "found url/path. pt:[%s] value:[%s]" startpt guess)
+                                          (make-pophint:hint :startpt startpt
+                                                             :endpt (+ startpt (length guess))
+                                                             :value guess)))))))))
+(add-to-list 'pophint:global-sources 'pophint:source-url-or-path t)
 
 ;; Comment
 (pophint:defsource
@@ -343,14 +353,7 @@ It's a buffer local variable and list like `pophint-config:quote-chars'."
 ;;;;;;;;;;;;;;;
 ;; For elisp
 
-(pophint:defsource :name "sexp-head"
-                   :description "Head word of sexp."
-                   :source '((shown . "SexpHead")
-                             (regexp . "(+\\([^() \t\n]+\\)")
-                             (requires . 1)))
-
 (defun pophint-config:elisp-setup ()
-  (add-to-list 'pophint:sources 'pophint:source-sexp-head)
   (setq pophint-config:exclude-quote-chars '("'" "`")))
 
 (add-hook 'emacs-lisp-mode-hook 'pophint-config:elisp-setup t)

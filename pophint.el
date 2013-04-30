@@ -47,7 +47,8 @@
 ;; ;; Key Binding
 ;; (define-key global-map (kbd "C-;") 'pophint:do-flexibly)
 ;; (define-key global-map (kbd "C-+") 'pophint:do)
-;; (define-key global-map (kbd "M-;") 'pophint:do-interactively)
+;; (define-key global-map (kbd "M-;") 'pophint:redo)
+;; (define-key global-map (kbd "C-M-;") 'pophint:do-interactively)
 
 ;;; Customization:
 ;; 
@@ -76,7 +77,14 @@
 ;; Define the action that called when finish hint-tip selection and the command using it.
 ;; 
 ;;  *** END auto-documentation
+;; [EVAL] (autodoc-document-lisp-buffer :type 'function :prefix "pophint:" :docstring t)
+;; `pophint:get-current-direction'
+;; Get current direction of searching next point for pop-up hint-tip.
+;; 
+;;  *** END auto-documentation
 ;; [EVAL] (autodoc-document-lisp-buffer :type 'command :prefix "pophint:" :docstring t)
+;; `pophint:redo'
+;; Redo last pop-up hint-tip using any sources.
 ;; `pophint:do-interactively'
 ;; Do pop-up hint-tip asking about what to do after select hint-tip.
 ;; `pophint:do-flexibly'
@@ -134,7 +142,7 @@
   :type 'integer
   :group 'pophint)
 
-(defcustom pophint:default-require-length 4
+(defcustom pophint:default-require-length 2
   "Default length of matched text for pop-up."
   :type 'integer
   :group 'pophint)
@@ -161,7 +169,7 @@
 (defstruct pophint:action name action)
 
 
-(defvar pophint--default-search-regexp "[^a-zA-Z0-9_]+\\([a-zA-Z0-9_]+\\)")
+(defvar pophint--default-search-regexp "\\<.+?\\>")
 (defvar pophint--current-direction 'around)
 (defvar pophint--default-source '((shown . "Word")
                                   (regexp . pophint--default-search-regexp)))
@@ -174,6 +182,11 @@
                                       (select-window (get-buffer-window buff)))
                                     (goto-char (pophint:hint-startpt hint)))))
 (defvar pophint--action-hash (make-hash-table :test 'equal))
+(defvar pophint--last-source nil)
+(defvar pophint--last-sources nil)
+(defvar pophint--last-action nil)
+(defvar pophint--last-action-name nil)
+(defvar pophint--last-window nil)
 
 
 (log4e:deflogger "pophint" "%t [%l] %m" "%H:%M:%S" '((fatal . "fatal")
@@ -283,6 +296,15 @@ Example:
 It return 'around or 'forward or 'backward."
   pophint--current-direction)
 
+(defun pophint:redo ()
+  "Redo last pop-up hint-tip using any sources."
+  (interactive)
+  (pophint:do :source pophint--last-source
+              :sources pophint--last-sources
+              :action pophint--last-action
+              :action-name pophint--last-action-name
+              :window pophint--last-window))
+
 (defun pophint:do-interactively ()
   "Do pop-up hint-tip asking about what to do after select hint-tip."
   (interactive)
@@ -380,10 +402,17 @@ NOT-SWITCH-WINDOW is t or nil. If non-nil, disable switching window when select 
                                         :direction currdirection
                                         :not-switch-direction not-switch-direction
                                         :not-switch-window not-switch-window
-                                        :window window)))
-        (pophint--do-action hint (or action
-                                     (assoc-default 'action source)
-                                     pophint--default-action))))
+                                        :window window))
+             (action (or action
+                         (assoc-default 'action source)
+                         pophint--default-action)))
+        (when (> (length sources) 0)
+          (setq pophint--last-source source)
+          (setq pophint--last-sources sources)
+          (setq pophint--last-action action)
+          (setq pophint--last-action-name action-name)
+          (setq pophint--last-window window))
+        (pophint--do-action hint action)))
     (yaxception:catch 'error e
       (message "[PopHint] Failed pophint:do : %s" (yaxception:get-text e))
       (pophint--fatal "failed do : %s\n%s" (yaxception:get-text e) (yaxception:get-stack-trace-string e))
