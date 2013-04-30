@@ -26,6 +26,8 @@
 ;; The interface has the following flow.
 ;;  1. pop-up tip about the matched point for some action which user want.
 ;;  2. do some action for the user selecting.
+;; 
+;; For more infomation, see <https://github.com/aki2o/emacs-pophint/blob/master/README.md>
 
 ;;; Dependency:
 ;; 
@@ -156,7 +158,7 @@
 
 
 (defstruct pophint:hint buffer popup overlay (startpt 0) (endpt 0) (value ""))
-(defstruct pophint:action description action)
+(defstruct pophint:action name action)
 
 
 (defvar pophint--default-search-regexp "[^a-zA-Z0-9_]+\\([a-zA-Z0-9_]+\\)")
@@ -229,15 +231,15 @@ Example:
 "
   (declare (indent 0))
   `(progn
-     (defvar ,(intern (format "pophint:source-%s" (downcase (replace-regexp-in-string " " "" name)))) nil
+     (defvar ,(intern (format "pophint:source-%s" (downcase (replace-regexp-in-string " +" "-" name)))) nil
        ,(format "Source for pop-up hint-tip of '%s'.\n\nDescription:\n%s" name (or description "Not documented.")))
-     (setq ,(intern (format "pophint:source-%s" (downcase (replace-regexp-in-string " " "" name)))) ,source)
-     (when (not (assoc-default 'shown ,(intern (format "pophint:source-%s" (downcase (replace-regexp-in-string " " "" name))))))
-       (add-to-list ',(intern (format "pophint:source-%s" (downcase (replace-regexp-in-string " " "" name)))) '(shown . ,name)))
-     (defun ,(intern (format "pophint:do-%s" (downcase (replace-regexp-in-string " " "" name)))) ()
-       ,(format "Do pop-up hint-tip using `pophint:source-%s'." (downcase (replace-regexp-in-string " " "" name)))
+     (setq ,(intern (format "pophint:source-%s" (downcase (replace-regexp-in-string " +" "-" name)))) ,source)
+     (when (not (assoc-default 'shown ,(intern (format "pophint:source-%s" (downcase (replace-regexp-in-string " +" "-" name))))))
+       (add-to-list ',(intern (format "pophint:source-%s" (downcase (replace-regexp-in-string " +" "-" name)))) '(shown . ,name)))
+     (defun ,(intern (format "pophint:do-%s" (downcase (replace-regexp-in-string " +" "-" name)))) ()
+       ,(format "Do pop-up hint-tip using `pophint:source-%s'." (downcase (replace-regexp-in-string " +" "-" name)))
        (interactive)
-       (pophint:do :source ',(intern (format "pophint:source-%s" (downcase (replace-regexp-in-string " " "" name))))))))
+       (pophint:do :source ',(intern (format "pophint:source-%s" (downcase (replace-regexp-in-string " +" "-" name))))))))
 
 (defmacro* pophint:defaction (&key key name description action)
   "Define the action that called when finish hint-tip selection and the command using it.
@@ -246,7 +248,7 @@ Arguments:
 KEY is string. It's one character. It's the key when read user input by `pophint:do-interactively'.
 NAME is string. It's used for define command as part of the name and show message in minibuffer when get user input.
 DESCRIPTION is string. It's used for define command as part of the docstring.
-ACTION is function.
+ACTION is function. For detail, see action of SOURCE for `pophint:defsource'.
 
 Example:
  (pophint:defaction :key \"y\"
@@ -265,15 +267,15 @@ Example:
                (not (= (length key) 1)))
            (message "[PopHint] Failed pophint:defaction : key is not one character.")
          (puthash key
-                  (make-pophint:action :description name :action action)
+                  (make-pophint:action :name name :action action)
                   pophint--action-hash)
-         (defun ,(intern (format "pophint:do-flexibly-%s" (downcase (replace-regexp-in-string " " "" name)))) ()
+         (defun ,(intern (format "pophint:do-flexibly-%s" (downcase (replace-regexp-in-string " " "-" name)))) ()
            ,(format "Do pop-up hint-tip using source in `pophint:sources' and do %s.\n\nDescription:\n%s"
                     name (or description "Not documented."))
            (interactive)
            (let ((act (gethash ,key pophint--action-hash)))
              (pophint:do-flexibly :action (pophint:action-action act)
-                                  :action-description (pophint:action-description act))))))))
+                                  :action-name (pophint:action-name act))))))))
 
 (defun pophint:get-current-direction ()
   "Get current direction of searching next point for pop-up hint-tip.
@@ -303,7 +305,7 @@ It return 'around or 'forward or 'backward."
                (let* ((action (gethash key pophint--action-hash)))
                  (cond ((pophint:action-p action)
                         (pophint:do-flexibly :action (pophint:action-action action)
-                                             :action-description (pophint:action-description action)))
+                                             :action-name (pophint:action-name action)))
                        (t
                         (message "[PopHint] Inputed not start key of action.")
                         (sleep-for 2)
@@ -319,21 +321,21 @@ It return 'around or 'forward or 'backward."
       (pophint--fatal "failed do-interactively : %s\n%s" (yaxception:get-text e) (yaxception:get-stack-trace-string e))
       (pophint--log-open-log-if-debug))))
 
-(defun* pophint:do-flexibly (&key action action-description window)
+(defun* pophint:do-flexibly (&key action action-name window)
   "Do pop-up hint-tip using source in `pophint:sources'.
 
 For detail, see `pophint:do'."
   (interactive)
-  (pophint--debug "start do flexibly. action-description:[%s]\naction:%s" action-description action)
+  (pophint--debug "start do flexibly. action-name:[%s]\naction:%s" action-name action)
   (pophint:do :sources (pophint--get-available-sources window)
               :action action
-              :action-description action-description
+              :action-name action-name
               :window window))
 
 (defun* pophint:do (&key source
                          sources
                          action
-                         action-description
+                         action-name
                          direction
                          not-highlight
                          window
@@ -344,7 +346,8 @@ SOURCE is alist or symbol of alist. About its value, see `pophint:defsource'.
  If nil, its value is the first of SOURCES or `pophint--default-source'.
  If non-nil, `pophint--default-source' isn't used for SOURCES.
 SOURCES is list of SOURCE. If this length more than 1, enable switching SOURCE when pop-up hint.
-ACTION is function. About this, see action of `pophint:defsource'. If nil, it's used.
+ACTION is function. About this, see action of SOURCE for `pophint:defsource'. If nil, it's used.
+ACTION-NAME is string. About this, see name of `pophint:defaction'.
 DIRECTION is symbol. The allowed value is the following.
  - forward  ... seek the pop-up point moving forward until `pophint:popup-max-tips'.
  - backward ... seek the pop-up point moving backward until `pophint:popup-max-tips'.
@@ -356,8 +359,8 @@ NOT-SWITCH-WINDOW is t or nil. If non-nil, disable switching window when select 
   (interactive)
   (yaxception:$
     (yaxception:try
-      (pophint--debug "start do. direction:[%s] not-highlight:[%s] window:[%s] not-switch-window:[%s] action-description:[%s]\naction:%s\nsource:%s\nsources:%s"
-                      direction not-highlight window not-switch-window action-description action source sources)
+      (pophint--debug "start do. direction:[%s] not-highlight:[%s] window:[%s] not-switch-window:[%s] action-name:[%s]\naction:%s\nsource:%s\nsources:%s"
+                      direction not-highlight window not-switch-window action-name action source sources)
       (let* ((sources (pophint--expand-sources sources))
              (source (or (pophint--expand-source source)
                          (when (> (length sources) 0) (nth 0 sources))
@@ -372,8 +375,9 @@ NOT-SWITCH-WINDOW is t or nil. If non-nil, disable switching window when select 
                                         :source source
                                         :sources sources
                                         :action action
-                                        :action-description (or action-description "Go/SrcAct")
+                                        :action-name (or action-name "Go/SrcAct")
                                         :not-highlight not-highlight
+                                        :direction currdirection
                                         :not-switch-direction not-switch-direction
                                         :not-switch-window not-switch-window
                                         :window window)))
@@ -420,14 +424,17 @@ NOT-SWITCH-WINDOW is t or nil. If non-nil, disable switching window when select 
                                        (> (length method) 0))
                                   method)
                                  (t
-                                  (case direction
+                                  (case pophint--current-direction
                                     (forward  '(re-search-forward))
                                     (backward '(re-search-backward))
                                     (around   '(re-search-forward re-search-backward)))))
             append (with-selected-window (or (and (windowp window) window)
                                              (get-buffer-window))
                      (save-excursion
-                       (loop initially (when (functionp init) (funcall init))
+                       (loop initially (progn
+                                         (pophint--trace "start searching hint. idx:[%s] require:[%s] max:[%s]\nbuffer: %s [point:%s]\nregexp: %s\nfunc: %s"
+                                                         idx requires pophint:popup-max-tips (current-buffer) (point) re srchfnc)
+                                         (when (functionp init) (funcall init)))
                              with cnt = 0
                              with ret
                              while (and (yaxception:$
@@ -498,15 +505,16 @@ NOT-SWITCH-WINDOW is t or nil. If non-nil, disable switching window when select 
                                   source
                                   sources
                                   action
-                                  action-description
+                                  action-name
                                   not-highlight
+                                  direction
                                   not-switch-direction
                                   not-switch-window
                                   window)
   (yaxception:$
     (yaxception:try
-      (pophint--debug "start event loop. hints:[%s] inputed:[%s] not-highlight:[%s] not-switch-direction:[%s] not-switch-window:[%s] window:[%s] action-description:[%s]\naction:%s\nsource:%s\nsources:%s"
-                      (length hints) inputed not-highlight not-switch-direction not-switch-window action-description action source sources)
+      (pophint--debug "start event loop. hints:[%s] inputed:[%s] not-highlight:[%s] not-switch-direction:[%s] not-switch-window:[%s] window:[%s] action-name:[%s]\naction:%s\nsource:%s\nsources:%s"
+                      (length hints) inputed not-highlight not-switch-direction not-switch-window action-name action source sources)
       (if (and (= (length hints) 1)
                (not (string= inputed "")))
           (pop hints)
@@ -516,7 +524,7 @@ NOT-SWITCH-WINDOW is t or nil. If non-nil, disable switching window when select 
                                       (one-window-p)))
                (key (popup-menu-read-key-sequence nil
                                                   (pophint--get-read-prompt :count (length hints)
-                                                                            :actdesc action-description
+                                                                            :actdesc action-name
                                                                             :source source
                                                                             :sources sources
                                                                             :not-switch-direction not-switch-direction
@@ -547,9 +555,10 @@ NOT-SWITCH-WINDOW is t or nil. If non-nil, disable switching window when select 
                  (pophint:do :source source
                              :sources sources
                              :action action
-                             :action-description action-description
-                             :direction (when not-switch-direction pophint--current-direction)
+                             :action-name action-name
+                             :direction (when not-switch-direction direction)
                              :not-highlight not-highlight
+                             :window window
                              :not-switch-window not-switch-window)
                  nil)
                 ((eq gbinding 'self-insert-command)
@@ -557,8 +566,9 @@ NOT-SWITCH-WINDOW is t or nil. If non-nil, disable switching window when select 
                         (pophint--trace "inputed hintchar. key:[%s] gbinding:[%s] binding:[%s]" key gbinding binding)
                         (pophint--event-loop :hints (loop for hint in hints
                                                           for tip = (pophint:hint-popup hint)
-                                                          for tiptextlist = (popup-list tip)
-                                                          for tiptext = (nth 0 tiptextlist)
+                                                          for tiptextlist = (when (popup-p tip) (popup-list tip))
+                                                          for tiptext = (or (when tiptextlist (nth 0 tiptextlist))
+                                                                            "")
                                                           if (and (string-match (concat "\\`" inputed (upcase key)) tiptext)
                                                                   (popup-live-p tip))
                                                           collect hint
@@ -568,10 +578,12 @@ NOT-SWITCH-WINDOW is t or nil. If non-nil, disable switching window when select 
                                              :source source
                                              :sources sources
                                              :action action
-                                             :action-description action-description
+                                             :action-name action-name
                                              :not-highlight not-highlight
+                                             :direction direction
                                              :not-switch-direction not-switch-direction
-                                             :not-switch-window not-switch-window))
+                                             :not-switch-window not-switch-window
+                                             :window window))
                        ((and (string= key pophint:switch-direction-char)
                              (not not-switch-direction))
                         (pophint--trace "inputed switch direction. key:[%s] gbinding:[%s] binding:[%s]" key gbinding binding)
@@ -579,12 +591,14 @@ NOT-SWITCH-WINDOW is t or nil. If non-nil, disable switching window when select 
                         (setq pophint--current-direction (case pophint--current-direction
                                                            (forward 'backward)
                                                            (backward 'around)
-                                                           (around 'forward)))
+                                                           (around 'forward)
+                                                           (t 'around)))
                         (pophint:do :source source
                                     :sources sources
                                     :action action
-                                    :action-description action-description
+                                    :action-name action-name
                                     :not-highlight not-highlight
+                                    :window window
                                     :not-switch-window not-switch-window)
                         nil)
                        ((and (string= key pophint:switch-source-char)
@@ -599,7 +613,10 @@ NOT-SWITCH-WINDOW is t or nil. If non-nil, disable switching window when select 
                                                   finally return (nth 0 sources))
                                     :sources sources
                                     :action action
-                                    :action-description action-description
+                                    :action-name action-name
+                                    :not-highlight not-highlight
+                                    :direction (when not-switch-direction direction)
+                                    :window window
                                     :not-switch-window not-switch-window))
                        ((and (string= key pophint:switch-window-char)
                              (not not-switch-window))
@@ -612,7 +629,9 @@ NOT-SWITCH-WINDOW is t or nil. If non-nil, disable switching window when select 
                           (pophint:do :source (when (member source nsources) source)
                                       :sources nsources
                                       :action action
-                                      :action-description action-description
+                                      :action-name action-name
+                                      :not-highlight not-highlight
+                                      :direction (when not-switch-direction direction)
                                       :window nwindow))
                         nil)
                        (t
@@ -624,10 +643,12 @@ NOT-SWITCH-WINDOW is t or nil. If non-nil, disable switching window when select 
                                              :source source
                                              :sources sources
                                              :action action
-                                             :action-description action-description
+                                             :action-name action-name
                                              :not-highlight not-highlight
+                                             :direction direction
                                              :not-switch-direction not-switch-direction
-                                             :not-switch-window not-switch-window))))
+                                             :not-switch-window not-switch-window
+                                             :window window))))
                 ((commandp binding)
                  (pophint--trace "inputed cmd. key:[%s] gbinding:[%s] binding:[%s]" key gbinding binding)
                  (pophint--deletes hints)
@@ -642,7 +663,7 @@ NOT-SWITCH-WINDOW is t or nil. If non-nil, disable switching window when select 
       (pophint--error "failed event loop : %s\n%s" (yaxception:get-text e) (yaxception:get-stack-trace-string e))
       (pophint--log-open-log-if-debug))))
 
-(defun* pophint--get-read-prompt (&key count
+(defun* pophint--get-read-prompt (&key (count 0)
                                        (actdesc "")
                                        source
                                        sources
@@ -718,7 +739,7 @@ NOT-SWITCH-WINDOW is t or nil. If non-nil, disable switching window when select 
   (let* ((count 1)
          (acttext (loop with ret = ""
                         for k being the hash-keys in pophint--action-hash using (hash-values act)
-                        for desc = (pophint:action-description act)
+                        for desc = (pophint:action-name act)
                         do (incf count)
                         do (setq ret (concat ret (format "'%s':%s " k desc)))
                         finally return ret)))

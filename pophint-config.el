@@ -195,14 +195,20 @@ It's a buffer local variable and list like `pophint-config:quote-chars'."
                                                collect c))
                                   (char-re (when chars (regexp-opt chars)))
                                   (re (when char-re (rx-to-string `(and (group (regexp ,char-re)))))))
-                             (when (and re (re-search-forward re nil t))
-                               (let* ((word (match-string-no-properties 1))
-                                      (startpt (point)))
-                                 (when (re-search-forward (format "[^\\]%s" word) nil t)
-                                   (make-pophint:hint :startpt startpt
-                                                      :endpt (- (point) 1)
-                                                      :value (buffer-substring-no-properties startpt
-                                                                                             (- (point) 1)))))))))
+                             (loop while (and re (re-search-forward re nil t))
+                                   for word = (match-string-no-properties 1)
+                                   for startpt = (point)
+                                   for endpt = (or (when (and (< (point) (point-max))
+                                                              (string= (format "%c" (char-after)) word))
+                                                     (forward-char)
+                                                     (- (point) 1))
+                                                   (when (re-search-forward (format "[^\\]%s" word) nil t)
+                                                     (- (point) 1)))
+                                   for value = (when (and endpt (< startpt endpt))
+                                                 (buffer-substring-no-properties startpt endpt))
+                                   if (not endpt) return nil
+                                   if (and (stringp value) (not (string= value "")))
+                                   return (make-pophint:hint :startpt startpt :endpt endpt :value value)))))
                        (lambda ()
                          (when (not (eq (pophint:get-current-direction) 'forward))
                            (let* ((chars (loop for c in pophint-config:quote-chars
@@ -210,14 +216,20 @@ It's a buffer local variable and list like `pophint-config:quote-chars'."
                                                collect c))
                                   (char-re (when chars (regexp-opt chars)))
                                   (re (when char-re (rx-to-string `(and (group (regexp ,char-re)))))))
-                             (when (and re (re-search-backward re nil t))
-                               (let* ((word (match-string-no-properties 1))
-                                      (endpt (point)))
-                                 (when (re-search-backward (format "[^\\]%s" word) nil t)
-                                   (make-pophint:hint :startpt (+ (point) 2)
-                                                      :endpt endpt
-                                                      :value (buffer-substring-no-properties (+ (point) 2)
-                                                                                             endpt))))))))))))
+                             (loop while (and re (re-search-backward re nil t))
+                                   for word = (match-string-no-properties 1)
+                                   for endpt = (point)
+                                   for startpt = (or (when (and (> (point) (point-min))
+                                                                (string= (format "%c" (char-before)) word))
+                                                       (forward-char -1)
+                                                       (+ (point) 2))
+                                                     (when (re-search-backward (format "[^\\]%s" word) nil t)
+                                                       (+ (point) 2)))
+                                   for value = (when (and startpt (< startpt endpt))
+                                                 (buffer-substring-no-properties startpt endpt))
+                                   if (not startpt) return nil
+                                   if (and (stringp value) (not (string= value "")))
+                                   return (make-pophint:hint :startpt startpt :endpt endpt :value value)))))))))
 (add-to-list 'pophint:global-sources 'pophint:source-quoted t)
 
 ;; Comment
@@ -452,6 +464,21 @@ It's a buffer local variable and list like `pophint-config:quote-chars'."
   (add-to-list 'pophint:sources 'pophint:source-w3m-anchor))
 
 (add-hook 'w3m-mode-hook 'pophint-config:w3m-setup t)
+
+
+;;;;;;;;;;;;;;;
+;; For dired
+
+(pophint:defsource :name "dired-node"
+                   :description "Node in directory."
+                   :source '((shown . "Node")
+                             (regexp . "^ *[d-][r-][w-][x-].+ +\\([^ ]+\\)$")
+                             (requires . 1)))
+
+(defun pophint-config:dired-setup ()
+  (add-to-list 'pophint:sources 'pophint:source-dired-node))
+
+(add-hook 'dired-mode-hook 'pophint-config:dired-setup t)
 
 
 (provide 'pophint-config)
