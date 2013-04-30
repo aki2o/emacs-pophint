@@ -211,7 +211,7 @@ It's a buffer local variable and list like `pophint-config:quote-chars'."
 (add-to-list 'pophint:global-sources 'pophint:source-quoted t)
 
 ;; URL or Filepath
-(defvar pophint-config:regexp-url-or-path (rx-to-string `(and bow (group (? (+ (any "a-zA-Z")) ":") "/"))))
+(defvar pophint-config:regexp-url-or-path (rx-to-string `(and (or bow bol) (group (? (+ (any "a-zA-Z")) ":") "/"))))
 (pophint:defsource
   :name "url-or-path"
   :description "Format like URL or Filepath."
