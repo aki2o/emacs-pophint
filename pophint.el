@@ -348,11 +348,16 @@ It return 'around or 'forward or 'backward."
 
 For detail, see `pophint:do'."
   (interactive)
-  (pophint--debug "start do flexibly. action-name:[%s]\naction:%s" action-name action)
-  (pophint:do :sources (pophint--get-available-sources window)
-              :action action
-              :action-name action-name
-              :window window))
+  (pophint--debug "start do flexibly. window:[%s] action-name:[%s]\naction:%s" window action-name action)
+  (let* ((window (or window pophint--last-window))
+         (sources (pophint--get-available-sources window))
+         (source (when (member pophint--last-source sources)
+                   pophint--last-source)))
+    (pophint:do :source source
+                :sources sources
+                :action action
+                :action-name action-name
+                :window window)))
 
 (defun* pophint:do (&key source
                          sources
@@ -666,7 +671,7 @@ NOT-SWITCH-WINDOW is t or nil. If non-nil, disable switching window when select 
                                           (next-window)))
                                (nsources (pophint--get-available-sources nwindow)))
                           (pophint:do :source (when (member source nsources) source)
-                                      :sources nsources
+                                      :sources (when (not not-switch-source) nsources)
                                       :action action
                                       :action-name action-name
                                       :not-highlight not-highlight
