@@ -3,15 +3,15 @@ What's this?
 
 This is a extension of Emacs that provide navigation like the Vimperator Hint Mode of Firfox.
 
-Do you know Vimperator of Firefox addon?  
+Do you know Vimperator of Firefox Addon?  
 If you don't know it, see a screenshot below.
 
 ![vimperator](image/vimperator.png)
 
-The hints that has a alphabet code are shown when you push a \"f\" key on Firefox like above.  
+The hints that has a alphabet code are shown when you push a "f" key on Firefox like above.  
 Then, if you push the alphabet, you can jump the linked URL.
 
-This extension provides a same interface on Emacs.
+This extension provides same interface on Emacs.
 
 Screenshot
 ==========
@@ -39,7 +39,7 @@ This extension provides the following interface.
 1. show the pop-up hints *SOMEWHERE* on any window.
 2. do *ACTION* the point and text that is selected by user.
 
-You cat add or change The *SOMEWHERE* and *ACTION* by definition *SOURCE*.  
+You can add or change the *SOMEWHERE* and *ACTION* by definition *SOURCE*.  
 *SOURCE* is Alist which has structure like `anything-source-...` of anything.el or `ac-source-...` of auto-complete.el.
 
 And,
@@ -56,39 +56,39 @@ If you execute the command that handle multiple source, the message is shown in 
 
 ![switch_source](image/switch_source.png)
 
-Then, you can switch a used source by pushing a \"s\" key.  
+Then, you can switch a used source by pushing a "s" key.  
 And, you can customize the key binding.
 
 ### Show the pop-up hints on other window
 
-If you execute the command that show the pop-up hint in the situation that a frame are devided some windows,
+If you execute the command that show the pop-up hint in the situation that a frame has some windows,
 the message is shown in minibuffer like the following.
 
 ![switch_window](image/switch_window.png)
 
-Then, you can switch a targeted window by pushing a \"w\" key.  
+Then, you can switch a target window by pushing a "w" key.  
 And, you can customize the key binding.
 
 pophint-config.el
 =================
 
 This elisp file define some sources and actions that I want.  
-I guess you can define *SOURCE* and *ACTION* that you want by seeing this elisp code.  
+I guess you can define source and action that you want by seeing this elisp code.  
 List the contents of this elisp at the following.
 
 ### pophint:global-sources
 
-`pophint:global-sources` is a variable. It's a list of *SOURCE*. It's avilable for all buffers.
+`pophint:global-sources` is a variable. It's a list of source. It's avilable for all buffers.
 
 * Sym ... Characters of symbol.
-* Quoted ... Enclosed part by character for quoting. e.g. \"
+* Quoted ... Enclosed part by character for quoting. (e.g. ")
 * URL/Path ... String like URL or Filepath format.
 * Cmt ... Comment part of one line.
 * Line ... Text of one line.
 
 ### pophint:sources
 
-`pophint:sources` is a buffer local variable. It's a list of *SOURCE*.
+`pophint:sources` is a buffer local variable. It's a list of source.
 
 * Link ... Formatted text for linking. It's enabled on w3m-mode, help-mode and info-mode.
 * Node ... Name part of directory and file in the directory on dired-mode.
@@ -98,7 +98,7 @@ List the contents of this elisp at the following.
 * Yank ... Copy the selected text.
 * RangeYank ... Copy the range from the selected point to the point that is selected by showing hints again.
 
-About using action for any source, see Install/Configuration section.
+About using action for any source, see Install/Configuration section below.
 
 ### Show hints when set mark
 
@@ -107,7 +107,7 @@ You can customize this behavior.
 
 ### Show hints when isearch
 
-When you execute `isearch-exit` after `isearch`, by default it's bound to \"RET\", show hints and move the selected point.  
+When you execute `isearch-exit` after `isearch`, by default it's bound to "RET", show hints and move the selected point.  
 You can customize this behavior.
 
 Install/Configuration
@@ -117,7 +117,7 @@ Install/Configuration
 
 I recommend using el-get for installing this extension.  
 Downloading manually or using auto-install.el are OK,
-but installing each the following dependency is required in the case.
+but installing each the following dependency is required in this case.
 
 ### If use auto-install.el
 
@@ -136,14 +136,14 @@ This extension provides the following commands.
 
 * pophint:do ... A base command. Show hints using given source, action and so on.
 * pophint:do-flexibly ... Do `pophint:do` using `pophint:global-sources` and `pophint:sources`.
-* pophint:do-interactively ... Inquire doing action for user and do `pophint:do-flexibly` using the action. 
-* pophint:redo ... Do `pophint:do` again.
+* pophint:do-interactively ... Inquire about action for user and do `pophint:do-flexibly` using the action. 
+* pophint:redo ... Do last `pophint:do` again.
 
 This extension provides the following API.
 
-* pophint:defsource ... Define *SOURCE*.
+* pophint:defsource ... Define source.
 It's defined as variable named `pophint:source-...` and the command named `pophint:do-...` is defined for the source.
-* pophint:defaction ... Define *ACTION*.
+* pophint:defaction ... Define action.
 You'll be able to select the action and the command named `pophint:do-flexibly-...` is defined for the action.
 
 For other API and customization, see this elisp code or execute `customize-group "pophint"`.
@@ -171,7 +171,7 @@ About them, see this elisp code and Configure section below.
     ;; When start searching the end point of RangeYank, layout the window position temporarily.
     (pophint-config:set-relayout-when-rangeyank-start t)
 
-    ;; Key Binding
+    ;; Key binding
     (define-key global-map (kbd "C-;") 'pophint:do-flexibly)
     (define-key global-map (kbd "C-+") 'pophint:do)
     (define-key global-map (kbd "M-;") 'pophint:redo)
