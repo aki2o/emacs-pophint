@@ -37,7 +37,7 @@ Feature
 This extension provides the following interface.
 
 1. show the pop-up hints *SOMEWHERE* on any window.
-2. do *ACTION* the point and text that is selected by user.
+2. do *ACTION* to the point and text that is selected by user.
 
 You can add or change the *SOMEWHERE* and *ACTION* by definition *SOURCE*.  
 *SOURCE* is Alist which has structure like `anything-source-...` of anything.el or `ac-source-...` of auto-complete.el.
