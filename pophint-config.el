@@ -114,26 +114,28 @@
 
 (defvar pophint-config:yank-range-action
   (lambda (hint)
-    (let* ((buff (pophint:hint-buffer hint)))
-      (save-window-excursion
-        (save-excursion
-          (when (and (buffer-live-p buff)
-                     (get-buffer-window buff)
-                     (not (eq (current-buffer) buff)))
-            (switch-to-buffer buff))
-          (goto-char (pophint:hint-startpt hint))
-          (setq pophint-config:yank-startpt (point))
-          (when pophint-config:relayout-when-yank-range-start-p
-            (recenter 0)
-            (delete-other-windows))
-          (pophint:do :source '((method . pophint-config:collect-word-methods))
-                      :direction 'forward
-                      :not-highlight t
-                      :not-switch-window t
-                      :action (lambda (hint)
-                                (when (number-or-marker-p pophint-config:yank-startpt)
-                                  (kill-new (buffer-substring-no-properties pophint-config:yank-startpt
-                                                                            (pophint:hint-startpt hint)))))))))))
+    (let* ((buff (pophint:hint-buffer hint))
+           (wnd (get-buffer-window buff)))
+      (when (and (buffer-live-p buff)
+                 (windowp wnd)
+                 (window-live-p wnd))
+        (save-window-excursion
+          (save-excursion
+            (with-selected-window wnd
+              (goto-char (pophint:hint-startpt hint))
+              (setq pophint-config:yank-startpt (point))
+              (when pophint-config:relayout-when-yank-range-start-p
+                (switch-to-buffer buff)
+                (recenter 0)
+                (delete-other-windows))
+              (pophint:do :source '((method . pophint-config:collect-word-methods))
+                          :direction 'forward
+                          :not-highlight t
+                          :not-switch-window t
+                          :action (lambda (hint)
+                                    (when (number-or-marker-p pophint-config:yank-startpt)
+                                      (kill-new (buffer-substring-no-properties pophint-config:yank-startpt
+                                                                                (pophint:hint-startpt hint)))))))))))))
 
 (defun pophint-config:set-relayout-when-rangeyank-start (activate)
   "Whether re-layouting window or not when start searching the end point of RangeYank."
