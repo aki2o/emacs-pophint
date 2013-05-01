@@ -25,7 +25,8 @@ If you execute the command that are provided by this extension, the buffer is li
 
 ![demo2](image/demo2.png)
 
-If you push the shown alphabet, cursol is moved to the point like the following.
+If you push the shown alphabet, cursol is moved to the point like the following.  
+The following is in the case that pushed "yj". Large alphabet is shown, but inputing small alphabet is OK.
 
 ![demo3](image/demo3.png)
 
