@@ -169,7 +169,8 @@
 (defstruct pophint:action name action)
 
 
-(defvar pophint--default-search-regexp "\\(?:\\<.+?\\>\\|\\(\\S-\\)\\s-*$\\)")
+(defvar pophint--default-search-regexp
+  "\\(?:[^a-zA-Z0-9]\\([a-zA-Z0-9][a-zA-Z0-9]\\)\\|[a-zA-Z0-9 ]\\([^a-zA-Z0-9 ][^a-zA-Z0-9 ]\\)\\|\\([^ \t\n]\\)\\s-*\n\\)")
 (defvar pophint--current-direction 'around)
 (defvar pophint--default-source '((shown . "Default")
                                   (regexp . pophint--default-search-regexp)
