@@ -5,7 +5,7 @@
 ;; Author: Hiroaki Otsu <ootsuhiroaki@gmail.com>
 ;; Keywords: popup
 ;; URL: https://github.com/aki2o/emacs-pophint
-;; Version: 0.1
+;; Version: 0.1.1
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -169,10 +169,11 @@
 (defstruct pophint:action name action)
 
 
-(defvar pophint--default-search-regexp "\\<.+?\\>")
+(defvar pophint--default-search-regexp "\\(?:\\<.+?\\>\\|\\(\\S-\\)\\s-*$\\)")
 (defvar pophint--current-direction 'around)
-(defvar pophint--default-source '((shown . "Word")
-                                  (regexp . pophint--default-search-regexp)))
+(defvar pophint--default-source '((shown . "Default")
+                                  (regexp . pophint--default-search-regexp)
+                                  (requires . 1)))
 (defvar pophint--default-action (lambda (hint)
                                   (let* ((buff (pophint:hint-buffer hint)))
                                     (push-mark)
@@ -394,6 +395,9 @@ NOT-SWITCH-WINDOW is t or nil. If non-nil, disable switching window when select 
                          pophint--default-source))
              (currdirection (or direction pophint--current-direction))
              (not-switch-direction (and direction t))
+             (not-highlight (or not-highlight
+                                (and (equal source pophint--default-source)
+                                     (not action))))
              (hints (pophint--get-hints :source source
                                         :direction currdirection
                                         :not-highlight not-highlight
@@ -754,7 +758,7 @@ NOT-SWITCH-WINDOW is t or nil. If non-nil, disable switching window when select 
                     (pophint--expand-sources pophint:sources))))
     (loop for src in (pophint--expand-sources pophint:global-sources)
           do (add-to-list 'sources src t))
-    (add-to-list 'sources pophint--default-source t)
+    ;; (add-to-list 'sources pophint--default-source t)
     sources))
 
 (defun pophint--deletes (hints)

@@ -5,7 +5,7 @@
 ;; Author: Hiroaki Otsu <ootsuhiroaki@gmail.com>
 ;; Keywords: popup
 ;; URL: https://github.com/aki2o/emacs-pophint
-;; Version: 0.1
+;; Version: 0.1.1
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -150,13 +150,6 @@
 ;;;;;;;;;;;;;;;;;;;;;;;
 ;; Add global source
 
-;; Symbol
-(pophint:defsource :name "symbol"
-                   :description "Symbol."
-                   :source '((shown . "Sym")
-                             (regexp . "\\_<.+?\\_>")))
-(add-to-list 'pophint:global-sources 'pophint:source-symbol t)
-
 ;; Quoted range
 (defvar pophint-config:quote-chars '("\"" "'" "`"))
 (defvar pophint-config:exclude-quote-chars nil)
@@ -282,6 +275,13 @@ It's a buffer local variable and list like `pophint-config:quote-chars'."
                              (limit . 100)
                              (regexp . pophint-config:regexp-one-line)))
 (add-to-list 'pophint:global-sources 'pophint:source-one-line t)
+
+;; Symbol
+(pophint:defsource :name "symbol"
+                   :description "Symbol."
+                   :source '((shown . "Sym")
+                             (regexp . "\\_<.+?\\_>")))
+(add-to-list 'pophint:global-sources 'pophint:source-symbol t)
 
 
 ;;;;;;;;;;;;;;

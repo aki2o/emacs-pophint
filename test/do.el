@@ -5,7 +5,7 @@
   (desc "do get-hint not argument")
   (expect (mock (pophint--get-hints :source pophint--default-source
                                     :direction 'hogedirection
-                                    :not-highlight nil
+                                    :not-highlight t
                                     :window nil))
     (stub pophint--event-loop => nil)
     (let* ((pophint--current-direction 'hogedirection))
@@ -44,7 +44,7 @@
                                      :sources nil
                                      :action nil
                                      :action-name "Go/SrcAct"
-                                     :not-highlight nil
+                                     :not-highlight t
                                      :direction 'hogedirect
                                      :not-switch-direction nil
                                      :not-switch-window nil
