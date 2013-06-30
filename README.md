@@ -114,11 +114,38 @@ You can customize this behavior.
 Install/Configuration
 =====================
 
-2013/05/01 Now during an application for registration in el-get.
-
 I recommend using el-get for installing this extension.  
 Downloading manually or using auto-install.el are OK,
 but installing each the following dependency is required in this case.
+
+### If use el-get.el
+
+2013/05/01 Now during an application for registration in el-get.
+2013/06/30 But, not yet regist.  
+
+If you set `el-get-sources` in your .emacs or site-start.el file,
+You can available el-get to install this extension.
+
+    (setq el-get-sources
+          '(
+            (:name log4e
+                   :website "https://github.com/aki2o/log4e"
+                   :description "provide logging framework for elisp."
+                   :type github
+                   :pkgname "aki2o/log4e")
+            (:name yaxception
+                   :website "https://github.com/aki2o/yaxception"
+                   :description "provide framework about exception like Java for elisp."
+                   :type github
+                   :pkgname "aki2o/yaxception")
+            (:name pophint
+                   :website "https://github.com/aki2o/emacs-pophint"
+                   :description "provide navigation like the Vimperator Hint Mode of Firfox."
+                   :type github
+                   :pkgname "aki2o/emacs-pophint"
+                   :depends (popup log4e yaxception))
+            ))
+    
 
 ### If use auto-install.el
 
@@ -163,6 +190,9 @@ About them, see this elisp code and Configure section below.
     (require 'pophint)
     (require 'pophint-config)
 
+    ;; Customize max of popup tip. Default is 200.
+    (setq pophint:popup-max-tips 400)
+
     ;; When set-mark-command, start pop-up hint automatically.
     (pophint-config:set-automatically-when-marking t)
     ;; When you select the shown hint-tip after set-mark-command, do yank immediately.
@@ -173,14 +203,14 @@ About them, see this elisp code and Configure section below.
     (pophint-config:set-relayout-when-rangeyank-start t)
 
     ;; Key binding
-    (define-key global-map (kbd "C-;") 'pophint:do-flexibly)
-    (define-key global-map (kbd "C-+") 'pophint:do)
+    (define-key global-map (kbd "C-;") 'pophint:do)
+    (define-key global-map (kbd "C-+") 'pophint:do-flexibly)
     (define-key global-map (kbd "M-;") 'pophint:redo)
     (define-key global-map (kbd "C-M-;") 'pophint:do-interactively)
 
     ;; If you want to start some action immediately, bind key for the action.
-    (define-key global-map (kbd "M-y") 'pophint:do-flexibly-rangeyank)
-    (define-key global-map (kbd "C-M-y") 'pophint:do-flexibly-yank)
+    (define-key global-map (kbd "M-y") 'pophint:do-flexibly-yank)
+    (define-key global-map (kbd "C-M-y") 'pophint:do-rangeyank)
 
     ;; If you want to use like Vimperator, add key binding for local map.
     (define-key view-mode-map (kbd ";") 'pophint:do-flexibly)

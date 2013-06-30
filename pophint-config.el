@@ -5,7 +5,7 @@
 ;; Author: Hiroaki Otsu <ootsuhiroaki@gmail.com>
 ;; Keywords: popup
 ;; URL: https://github.com/aki2o/emacs-pophint
-;; Version: 0.1.1
+;; Version: 0.2.0
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -50,7 +50,8 @@
 ;; (pophint-config:set-relayout-when-rangeyank-start t)
 ;; 
 ;; ;; If you want to start some action immediately, bind key for the action.
-;; (define-key global-map (kbd "C-M-y") 'pophint:do-flexibly-yank)
+;; (define-key global-map (kbd "M-y") 'pophint:do-flexibly-yank)
+;; (define-key global-map (kbd "C-M-y") 'pophint:do-rangeyank)
 
 ;;; Customization:
 ;; 
@@ -145,6 +146,15 @@
                    :name "RangeYank"
                    :description "Yank the text getting end point by do pop-up at the selected point."
                    :action 'pophint-config:yank-range-action)
+
+(pophint:defsource
+  :name "RangeYank"
+  :description "Yank the text getting end point by do pop-up at the selected point."
+  :source '((shown . "RangeYank")
+            (regexp . pophint--default-search-regexp)
+            (requires . 1)
+            (highlight . nil)
+            (action . pophint-config:yank-range-action)))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;

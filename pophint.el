@@ -5,7 +5,7 @@
 ;; Author: Hiroaki Otsu <ootsuhiroaki@gmail.com>
 ;; Keywords: popup
 ;; URL: https://github.com/aki2o/emacs-pophint
-;; Version: 0.1.1
+;; Version: 0.2.0
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -174,7 +174,8 @@
 (defvar pophint--current-direction 'around)
 (defvar pophint--default-source '((shown . "Default")
                                   (regexp . pophint--default-search-regexp)
-                                  (requires . 1)))
+                                  (requires . 1)
+                                  (highlight . nil)))
 (defvar pophint--default-action (lambda (hint)
                                   (let* ((buff (pophint:hint-buffer hint)))
                                     (push-mark)
@@ -189,6 +190,7 @@
 (defvar pophint--last-action nil)
 (defvar pophint--last-action-name nil)
 (defvar pophint--last-window nil)
+(defvar pophint--last-hints nil)
 
 
 (log4e:deflogger "pophint" "%t [%l] %m" "%H:%M:%S" '((fatal . "fatal")
@@ -208,34 +210,37 @@ NAME is string. It's used for define variable and command as part of the name.
 DESCRIPTION is string. It's used for define variable as part of the docstring.
 SOURCE is alist. The member is the following.
 
- - regexp   ... It's string.
-                It's used for finding next point of pop-up.
-                If nil, its value is `pophint--default-search-regexp'.
-                If exist group of matches, next point is beginning of group 1, else it's beginning of group 0.
+ - shown     ... It's string.
+                 It's used for message in minibuffer when get user input.
+                 If nil, its value is NAME.
 
- - requires ... It's integer.
-                It's minimum length of matched text as next point.
-                If nil, its value is 0.
+ - regexp    ... It's string.
+                 It's used for finding next point of pop-up.
+                 If nil, its value is `pophint--default-search-regexp'.
+                 If exist group of matches, next point is beginning of group 1, else it's beginning of group 0.
 
- - limit    ... It's integer.
-                If non-nil, replace `pophint:popup-max-tips' with it while using the source.
+ - requires  ... It's integer.
+                 It's minimum length of matched text as next point.
+                 If nil, its value is 0.
 
- - action   ... It's function.
-                It's called when finish hint-tip selection.
-                If nil, its value is `pophint--default-action'.
-                It receive the object of `pophint:hint' selected by user.
+ - limit     ... It's integer.
+                 If non-nil, replace `pophint:popup-max-tips' with it while using the source.
+
+ - action    ... It's function.
+                 It's called when finish hint-tip selection.
+                 If nil, its value is `pophint--default-action'.
+                 It receive the object of `pophint:hint' selected by user.
             
- - method   ... It's function or list of function.
-                It's called when find next point of pop-up.
-                If nil, its value is `re-search-forward' or `re-search-backward', and regexp is used.
+ - method    ... It's function or list of function.
+                 It's called when find next point of pop-up.
+                 If nil, its value is `re-search-forward' or `re-search-backward', and regexp is used.
 
- - init     ... It's function.
-                It's called before start the loop that find next point of pop-up.
-                If the method is multiple, It's called before start each method.
+ - init      ... It's function.
+                 It's called before start the loop that find next point of pop-up.
+                 If the method is multiple, It's called before start each method.
 
- - shown    ... It's string.
-                It's used for message in minibuffer when get user input.
-                If nil, its value is NAME.
+ - highlight ... It's t or nil. Default is t.
+                 If nil, don't highlight matched text when pop-up hint.
 
 Example:
  (pophint:defsource :name \"sexp-head\"
@@ -390,6 +395,7 @@ NOT-SWITCH-WINDOW is t or nil. If non-nil, disable switching window when select 
     (yaxception:try
       (pophint--debug "start do. direction:[%s] not-highlight:[%s] window:[%s] not-switch-window:[%s] action-name:[%s]\naction:%s\nsource:%s\nsources:%s"
                       direction not-highlight window not-switch-window action-name action source sources)
+      (pophint--delete-last-hints)
       (let* ((sources (pophint--expand-sources sources))
              (source (or (pophint--expand-source source)
                          (when (> (length sources) 0) (nth 0 sources))
@@ -397,22 +403,23 @@ NOT-SWITCH-WINDOW is t or nil. If non-nil, disable switching window when select 
              (currdirection (or direction pophint--current-direction))
              (not-switch-direction (and direction t))
              (not-highlight (or not-highlight
-                                (and (equal source pophint--default-source)
-                                     (not action))))
+                                (and (assq 'highlight source)
+                                     (not (assoc-default 'highlight source)))))
              (hints (pophint--get-hints :source source
                                         :direction currdirection
                                         :not-highlight not-highlight
                                         :window window))
-             (hint (pophint--event-loop :hints hints
-                                        :source source
-                                        :sources sources
-                                        :action action
-                                        :action-name (or action-name "Go/SrcAct")
-                                        :not-highlight not-highlight
-                                        :direction currdirection
-                                        :not-switch-direction not-switch-direction
-                                        :not-switch-window not-switch-window
-                                        :window window))
+             (hint (progn
+                     (pophint--event-loop :hints hints
+                                          :source source
+                                          :sources sources
+                                          :action action
+                                          :action-name (or action-name "Go/SrcAct")
+                                          :not-highlight not-highlight
+                                          :direction currdirection
+                                          :not-switch-direction not-switch-direction
+                                          :not-switch-window not-switch-window
+                                          :window window)))
              (action (or action
                          (assoc-default 'action source)
                          pophint--default-action)))
@@ -472,7 +479,7 @@ NOT-SWITCH-WINDOW is t or nil. If non-nil, disable switching window when select 
                                       (backward '(re-search-backward))
                                       (around   '(re-search-forward re-search-backward)))))
               do (with-selected-window (or (and (windowp window) (window-live-p window) window)
-                                           (get-buffer-window))
+                                           (nth 0 (get-buffer-window-list)))
                    (save-excursion
                      (loop initially (progn
                                        (pophint--trace "start searching hint. idx:[%s] require:[%s] max:[%s]\nbuffer: %s [point:%s]\nregexp: %s\nfunc: %s"
@@ -535,7 +542,7 @@ NOT-SWITCH-WINDOW is t or nil. If non-nil, disable switching window when select 
         (pophint--error "failed get hints : %s\n%s" (yaxception:get-text e) (yaxception:get-stack-trace-string e))
         (pophint--log-open-log-if-debug)))))
       
-      (defun pophint--get-popup-text (idx)
+(defun pophint--get-popup-text (idx)
   (if (or (not (stringp pophint:popup-chars))
           (string= pophint:popup-chars ""))
       ""
@@ -571,18 +578,22 @@ NOT-SWITCH-WINDOW is t or nil. If non-nil, disable switching window when select 
                                       (< (length sources) 2)))
                (not-switch-window (or not-switch-window
                                       (one-window-p)))
-               (key (popup-menu-read-key-sequence nil
-                                                  (pophint--get-read-prompt :count (length hints)
-                                                                            :actdesc action-name
-                                                                            :source source
-                                                                            :sources sources
-                                                                            :not-switch-direction not-switch-direction
-                                                                            :not-switch-source not-switch-source
-                                                                            :not-switch-window not-switch-window)))
-               (gbinding (lookup-key (current-global-map) key))
+               (key (progn
+                      (setq pophint--last-hints hints)
+                      (popup-menu-read-key-sequence nil
+                                                    (pophint--get-read-prompt :count (length hints)
+                                                                              :actdesc action-name
+                                                                              :source source
+                                                                              :sources sources
+                                                                              :not-switch-direction not-switch-direction
+                                                                              :not-switch-source not-switch-source
+                                                                              :not-switch-window not-switch-window))))
+               (gbinding (progn (pophint--debug "got input key")
+                                (lookup-key (current-global-map) key)))
                (binding (or (when (current-local-map)
                               (lookup-key (current-local-map) key))
                             gbinding)))
+          (setq pophint--last-hints nil)
           (cond ((or (null key) (zerop (length key)))
                  (pophint--trace "inputed null. key:[%s] gbinding:[%s] binding:[%s]" key gbinding binding)
                  (pophint--deletes hints))
@@ -597,8 +608,8 @@ NOT-SWITCH-WINDOW is t or nil. If non-nil, disable switching window when select 
                                 (pop hints))))
                    (pophint--deletes hints)
                    hint))
-                ((or (eq binding 'backward-delete-char-untabify)
-                     (eq binding 'delete-backward-char))
+                ((or (eq gbinding 'backward-delete-char-untabify)
+                     (eq gbinding 'delete-backward-char))
                  (pophint--trace "inputed del. key:[%s] gbinding:[%s] binding:[%s]" key gbinding binding)
                  (pophint--deletes hints)
                  (pophint:do :source source
@@ -675,7 +686,8 @@ NOT-SWITCH-WINDOW is t or nil. If non-nil, disable switching window when select 
                                                                   (get-buffer-window))
                                           (next-window)))
                                (nsources (pophint--get-available-sources nwindow)))
-                          (pophint:do :source (when (member source nsources) source)
+                          (pophint:do :source (or (when (= (length sources) 0) source)
+                                                  (when (member source nsources) source))
                                       :sources (when (not not-switch-source) nsources)
                                       :action action
                                       :action-name action-name
@@ -769,13 +781,18 @@ NOT-SWITCH-WINDOW is t or nil. If non-nil, disable switching window when select 
   nil)
 
 (defun pophint--delete (hint)
-  (let* ((tip (pophint:hint-popup hint))
-         (ov (pophint:hint-overlay hint)))
-    (when ov
-      (delete-overlay ov))
-    (when tip
-      (popup-delete tip))
-    nil))
+  (when (pophint:hint-p hint)
+    (let* ((tip (pophint:hint-popup hint))
+           (ov (pophint:hint-overlay hint)))
+      (when ov
+        (delete-overlay ov))
+      (when tip
+        (popup-delete tip))
+      nil)))
+
+(defun pophint--delete-last-hints ()
+  (pophint--deletes pophint--last-hints)
+  (setq pophint--last-hints nil))
 
 (defun pophint--do-action (hint action)
   (when (pophint:hint-p hint)
@@ -806,6 +823,10 @@ NOT-SWITCH-WINDOW is t or nil. If non-nil, disable switching window when select 
          something)
         (t
          nil)))
+
+(defadvice keyboard-quit (before delete-pophint-last-hints activate)
+  (pophint--delete-last-hints))
+
 
 (provide 'pophint)
 ;;; pophint.el ends here
