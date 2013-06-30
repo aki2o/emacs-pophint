@@ -120,10 +120,10 @@ but installing each the following dependency is required in this case.
 
 ### If use el-get.el
 
-2013/05/01 Now during an application for registration in el-get.
+2013/05/01 Now during an application for registration in el-get.  
 2013/06/30 But, not yet regist.  
 
-If you set `el-get-sources` in your .emacs or site-start.el file,
+If you set `el-get-sources` in your .emacs or site-start.el file,  
 You can available el-get to install this extension.
 
     (setq el-get-sources
