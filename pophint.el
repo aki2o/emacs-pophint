@@ -1,4 +1,4 @@
-;;; pophint.el --- provide navigation like the Vimperator Hint Mode of Firfox that pop-up tip and do some action for the selected.
+;;; pophint.el --- Provide navigation using pop-up tips, like Firefox's Vimperator Hint Mode
 
 ;; Copyright (C) 2013  Hiroaki Otsu
 
@@ -23,14 +23,14 @@
 
 ;;; Commentary:
 ;; 
-;; This extension provides navigation like the Vimperator Hint Mode of Firfox.
+;; This extension provides navigation like the Vimperator Hint Mode of Firefox.
 ;; The interface has the following flow.
 ;;  1. pop-up tip about the matched point for some action which user want.
 ;;  2. do some action for the user selecting.
 ;; 
 ;; For more infomation, see <https://github.com/aki2o/emacs-pophint/blob/master/README.md>
 
-;;; Dependency:
+;;; Dependencies:
 ;; 
 ;; - popup.el ( bundled auto-complete.el. see <https://github.com/auto-complete/auto-complete> )
 ;; - yaxception.el ( see <https://github.com/aki2o/yaxception> )
