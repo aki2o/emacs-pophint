@@ -122,30 +122,7 @@ but installing each the following dependency is required in this case.
 
 2013/05/01 Now during an application for registration in el-get.  
 2013/06/30 But, not yet regist.  
-
-If you set `el-get-sources` in your .emacs or site-start.el file,  
-You can available el-get to install this extension.
-
-    (setq el-get-sources
-          '(
-            (:name log4e
-                   :website "https://github.com/aki2o/log4e"
-                   :description "provide logging framework for elisp."
-                   :type github
-                   :pkgname "aki2o/log4e")
-            (:name yaxception
-                   :website "https://github.com/aki2o/yaxception"
-                   :description "provide framework about exception like Java for elisp."
-                   :type github
-                   :pkgname "aki2o/yaxception")
-            (:name pophint
-                   :website "https://github.com/aki2o/emacs-pophint"
-                   :description "provide navigation like the Vimperator Hint Mode of Firfox."
-                   :type github
-                   :pkgname "aki2o/emacs-pophint"
-                   :depends (popup log4e yaxception))
-            ))
-    
+2013/07/26 It's available. But, master branch only.  
 
 ### If use auto-install.el
 
