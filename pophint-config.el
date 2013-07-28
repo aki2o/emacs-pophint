@@ -378,8 +378,10 @@ It's a buffer local variable and list like `pophint-config:quote-chars'."
 
 (when (featurep 'anything-c-moccur)
   (defadvice anything-c-moccur-from-isearch (around disable-pophint activate)
-    (let ((pophint-config:active-when-isearch-exit-p nil))
-      ad-do-it))
+    (let ((exitconf pophint-config:active-when-isearch-exit-p))
+      (setq pophint-config:active-when-isearch-exit-p nil)
+      ad-do-it
+      (setq pophint-config:active-when-isearch-exit-p exitconf)))
   )
 
 
