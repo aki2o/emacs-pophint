@@ -5,7 +5,7 @@
 ;; Author: Hiroaki Otsu <ootsuhiroaki@gmail.com>
 ;; Keywords: popup
 ;; URL: https://github.com/aki2o/emacs-pophint
-;; Version: 0.2.0
+;; Version: 0.3.0
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -313,12 +313,27 @@ It's a buffer local variable and list like `pophint-config:quote-chars'."
                                       (when pophint-config:yank-immediately-when-marking-p
                                         (kill-ring-save currpt (point)))))))))
 
+(defadvice cua-set-mark (after do-pophint disable)
+  (pophint--trace "start do when cua-set-mark")
+  (pophint:do :not-highlight t
+              :not-switch-window t
+              :source '((regexp . "[^a-zA-Z0-9]+")
+                        (action . (lambda (hint)
+                                    (let* ((currpt (point)))
+                                      (goto-char (pophint:hint-startpt hint))
+                                      (when pophint-config:yank-immediately-when-marking-p
+                                        (kill-ring-save currpt (point)))))))))
+
 (defun pophint-config:set-automatically-when-marking (activate)
   "Whether the pop-up is automatically or not when set mark."
-  (if activate
-      (ad-enable-advice 'set-mark-command 'after 'do-pophint)
-    (ad-disable-advice 'set-mark-command 'after 'do-pophint))
-  (ad-activate 'set-mark-command))
+  (cond (activate
+         (ad-enable-advice 'set-mark-command 'after 'do-pophint)
+         (ad-enable-advice 'cua-set-mark 'after 'do-pophint))
+        (t
+         (ad-disable-advice 'set-mark-command 'after 'do-pophint)
+         (ad-disable-advice 'cua-set-mark 'after 'do-pophint)))
+  (ad-activate 'set-mark-command)
+  (ad-activate 'cua-set-mark))
 
 
 ;;;;;;;;;;;;;;;;;
@@ -360,6 +375,12 @@ It's a buffer local variable and list like `pophint-config:quote-chars'."
     (ad-disable-advice 'isearch-exit 'before 'do-pophint))
   (ad-activate 'isearch-exit)
   (setq pophint-config:active-when-isearch-exit-p activate))
+
+(when (featurep 'anything-c-moccur)
+  (defadvice anything-c-moccur-from-isearch (around disable-pophint activate)
+    (let ((pophint-config:active-when-isearch-exit-p nil))
+      ad-do-it))
+  )
 
 
 ;;;;;;;;;;;;;;;
