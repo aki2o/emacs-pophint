@@ -20,24 +20,24 @@
     (stub lookup-key => 'keyboard-quit)
     (pophint--event-loop :hints (list (make-pophint:hint :value "hoge" :startpt 1 :endpt 2)))))
 
-;; (expectations
-;;   (desc "event-loop ret")
-;;   (expect nil
-;;     (stub popup-menu-read-key-sequence => (kbd "q"))
-;;     (stub lookup-key => 'newline)
-;;     (pophint--event-loop :hints (list (make-pophint:hint :value "hoge" :startpt 1 :endpt 2)
-;;                                       (make-pophint:hint :value "fuga" :startpt 1 :endpt 2)))))
+(expectations
+  (desc "event-loop ret")
+  (expect nil
+    (stub popup-menu-read-key-sequence => (kbd "q"))
+    (stub lookup-key => 'newline)
+    (pophint--event-loop :hints (list (make-pophint:hint :value "hoge" :startpt 1 :endpt 2)
+                                      (make-pophint:hint :value "fuga" :startpt 1 :endpt 2)))))
 
-;; (expectations
-;;   (desc "event-loop ret has inputed")
-;;   (expect "hoge"
-;;     (stub popup-menu-read-key-sequence => (kbd "q"))
-;;     (stub lookup-key => 'newline)
-;;     (let* ((ret (pophint--event-loop :hints (list (make-pophint:hint :value "hoge" :startpt 1 :endpt 2)
-;;                                                   (make-pophint:hint :value "fuga" :startpt 1 :endpt 2))
-;;                                      :inputed "q")))
-;;       (and (pophint:hint-p ret)
-;;            (pophint:hint-value ret)))))
+(expectations
+  (desc "event-loop ret has inputed")
+  (expect "hoge"
+    (stub popup-menu-read-key-sequence => (kbd "q"))
+    (stub lookup-key => 'newline)
+    (let* ((ret (pophint--event-loop :hints (list (make-pophint:hint :value "hoge" :startpt 1 :endpt 2)
+                                                  (make-pophint:hint :value "fuga" :startpt 1 :endpt 2))
+                                     :inputed "q")))
+      (and (pophint:hint-p ret)
+           (pophint:hint-value ret)))))
 
 (expectations
   (desc "event-loop delete-backward-char")

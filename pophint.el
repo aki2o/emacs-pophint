@@ -5,7 +5,7 @@
 ;; Author: Hiroaki Otsu <ootsuhiroaki@gmail.com>
 ;; Keywords: popup
 ;; URL: https://github.com/aki2o/emacs-pophint
-;; Version: 0.3.0
+;; Version: 0.3.1
 ;; Package-Requires: ((popup "0.5.0") (log4e "0.2.0") (yaxception "0.1"))
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -623,12 +623,12 @@ NOT-SWITCH-WINDOW is t or nil. If non-nil, disable switching window when select 
                  (pophint--deletes hints)
                  (keyboard-quit)
                  nil)
-                ;; ((eq gbinding 'newline)
-                ;;  (pophint--trace "inputed ret. key:[%s] gbinding:[%s] binding:[%s]" key gbinding binding)
-                ;;  (let* ((hint (when (not (string= inputed ""))
-                ;;                 (pop hints))))
-                ;;    (pophint--deletes hints)
-                ;;    hint))
+                ((eq gbinding 'newline)
+                 (pophint--trace "inputed ret. key:[%s] gbinding:[%s] binding:[%s]" key gbinding binding)
+                 (let* ((hint (when (not (string= inputed ""))
+                                (pop hints))))
+                   (pophint--deletes hints)
+                   hint))
                 ((or (eq gbinding 'backward-delete-char-untabify)
                      (eq gbinding 'delete-backward-char))
                  (pophint--trace "inputed del. key:[%s] gbinding:[%s] binding:[%s]" key gbinding binding)
