@@ -5,7 +5,7 @@
 ;; Author: Hiroaki Otsu <ootsuhiroaki@gmail.com>
 ;; Keywords: popup
 ;; URL: https://github.com/aki2o/emacs-pophint
-;; Version: 0.3.1
+;; Version: 0.3.2
 ;; Package-Requires: ((popup "0.5.0") (log4e "0.2.0") (yaxception "0.1"))
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -568,8 +568,8 @@ NOT-SWITCH-WINDOW is t or nil. If non-nil, disable switching window when select 
                                        (when ov
                                          (overlay-put ov 'window (selected-window))
                                          (overlay-put ov 'face 'pophint:match-face))
-                                       (setq hints (append hints (list hint)))))))))
-        (pophint--show-tip hints)
+                                       (setq hints (append hints (list hint)))))))
+            (pophint--show-tip hints)))
         hints)
       (yaxception:catch 'error e
         (pophint--deletes hints)
