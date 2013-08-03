@@ -510,6 +510,38 @@ It's a buffer local variable and list like `pophint-config:quote-chars'."
 
 (add-hook 'w3m-mode-hook 'pophint-config:w3m-setup t)
 
+;;;;;;;;;;;;;
+;; For eww
+
+(pophint:defsource
+  :name "eww-anchor"
+  :description "Anchor on eww."
+  :source '((shown . "Link")
+            (limit . 50)
+            (method . ((lambda ()
+                         (when (and (not (eq (pophint:get-current-direction) 'backward))
+                                    (shr-next-link))
+                           (let* ((url (get-text-property (point) 'shr-url)))
+                             (pophint--trace "(eww)found anchor. url:[%s] " url)
+                             (make-pophint:hint :startpt (point)
+                                                :endpt (point)
+                                                :value url))))
+                       (lambda ()
+                         (when (and (not (eq (pophint:get-current-direction) 'forward))
+                                    (shr-previous-link))
+                           (let* ((url (get-text-property (point) 'shr-url)))
+                             (pophint--trace "found anchor. url:[%s]" url)
+                             (make-pophint:hint :startpt (point)
+                                                :endpt (point)
+                                                :value url))))))
+            (action . (lambda (hint)
+                        (goto-char (pophint:hint-startpt hint))
+                        (shr-browse-url)))))
+
+(defun pophint-config:eww-setup ()
+  (add-to-list 'pophint:sources 'pophint:source-eww-anchor))
+
+(add-hook 'eww-mode-hook 'pophint-config:eww-setup t)
 
 ;;;;;;;;;;;;;;;
 ;; For dired
