@@ -304,6 +304,7 @@ Example:
 It return 'around or 'forward or 'backward."
   pophint--current-direction)
 
+;;;###autoload
 (defun pophint:redo ()
   "Redo last pop-up hint-tip using any sources."
   (interactive)
@@ -312,7 +313,7 @@ It return 'around or 'forward or 'backward."
               :action pophint--last-action
               :action-name pophint--last-action-name
               :window pophint--last-window))
-
+;;;###autoload
 (defun pophint:do-interactively ()
   "Do pop-up hint-tip asking about what to do after select hint-tip."
   (interactive)
@@ -351,6 +352,7 @@ It return 'around or 'forward or 'backward."
       (pophint--fatal "failed do-interactively : %s\n%s" (yaxception:get-text e) (yaxception:get-stack-trace-string e))
       (pophint--log-open-log-if-debug))))
 
+;;;###autoload
 (defun* pophint:do-flexibly (&key action action-name window)
   "Do pop-up hint-tip using source in `pophint:sources'.
 
@@ -367,6 +369,7 @@ For detail, see `pophint:do'."
                 :action-name action-name
                 :window window)))
 
+;;;###autoload
 (defun* pophint:do (&key source
                          sources
                          action
