@@ -216,7 +216,7 @@ It's a buffer local variable and list like `pophint-config:quote-chars'."
 (add-to-list 'pophint:global-sources 'pophint:source-quoted t)
 
 ;; URL or Filepath
-(defvar pophint-config:regexp-url-or-path (rx-to-string `(and (or bow bol) (group (? (+ (any "a-zA-Z")) ":") "/"))))
+(defvar pophint-config:regexp-url-or-path (rx-to-string `(and (or blank bol "'" "\"") (group (* (any "a-zA-Z.~:"))) "/")))
 (pophint:defsource
   :name "url-or-path"
   :description "Format like URL or Filepath."
@@ -238,6 +238,7 @@ It's a buffer local variable and list like `pophint-config:quote-chars'."
                                     (functionp 'ffap-guesser))
                            (loop while (re-search-backward pophint-config:regexp-url-or-path nil t)
                                  for startpt = (match-beginning 1)
+                                 do (goto-char startpt)
                                  for guess = (ffap-guesser)
                                  if guess
                                  return (progn
