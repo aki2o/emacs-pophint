@@ -5,7 +5,7 @@
 ;; Author: Hiroaki Otsu <ootsuhiroaki@gmail.com>
 ;; Keywords: popup
 ;; URL: https://github.com/aki2o/emacs-pophint
-;; Version: 0.3.1
+;; Version: 0.3.2
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -170,7 +170,6 @@
 If exist the character that not be used for quote, set `pophint-config:exclude-quote-chars'.
 It's a buffer local variable and list like `pophint-config:quote-chars'."
   :source '((shown . "Quoted")
-            (limit . 50)
             (method . ((lambda ()
                          (when (not (eq (pophint:get-current-direction) 'backward))
                            (let* ((chars (loop for c in pophint-config:quote-chars
@@ -253,7 +252,6 @@ It's a buffer local variable and list like `pophint-config:quote-chars'."
   :name "comment-line"
   :description "Part of `font-lock-comment-face' in line"
   :source '((shown . "Cmt")
-            (limit . 100)
             (method . ((lambda ()
                          (when (not (eq (pophint:get-current-direction) 'backward))
                            (loop while (re-search-forward "\\s<+" nil t)
@@ -283,7 +281,6 @@ It's a buffer local variable and list like `pophint-config:quote-chars'."
 (pophint:defsource :name "one-line"
                    :description "One line."
                    :source '((shown . "Line")
-                             (limit . 100)
                              (regexp . pophint-config:regexp-one-line)))
 (add-to-list 'pophint:global-sources 'pophint:source-one-line t)
 
@@ -409,7 +406,6 @@ It's a buffer local variable and list like `pophint-config:quote-chars'."
   :name "help-btn"
   :description "Button on help-mode."
   :source '((shown . "Link")
-            (limit . 50)
             (method . ((lambda ()
                          (when (and (not (eq (pophint:get-current-direction) 'backward))
                                     (forward-button 1))
@@ -447,7 +443,6 @@ It's a buffer local variable and list like `pophint-config:quote-chars'."
   :name "info-ref"
   :description "Reference on info-mode."
   :source '((shown . "Link")
-            (limit . 50)
             (method . ((lambda ()
                          (when (not (eq (pophint:get-current-direction) 'backward))
                            (let* ((currpt (point))
@@ -481,7 +476,6 @@ It's a buffer local variable and list like `pophint-config:quote-chars'."
   :name "w3m-anchor"
   :description "Anchor on w3m."
   :source '((shown . "Link")
-            (limit . 50)
             (method . ((lambda ()
                          (when (and (not (eq (pophint:get-current-direction) 'backward))
                                     (w3m-goto-next-anchor))
@@ -518,7 +512,6 @@ It's a buffer local variable and list like `pophint-config:quote-chars'."
   :name "eww-anchor"
   :description "Anchor on eww."
   :source '((shown . "Link")
-            (limit . 50)
             (method . ((lambda ()
                          (when (and (not (eq (pophint:get-current-direction) 'backward))
                                     (shr-next-link))

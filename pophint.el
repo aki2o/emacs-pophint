@@ -5,7 +5,7 @@
 ;; Author: Hiroaki Otsu <ootsuhiroaki@gmail.com>
 ;; Keywords: popup
 ;; URL: https://github.com/aki2o/emacs-pophint
-;; Version: 0.3.4
+;; Version: 0.3.5
 ;; Package-Requires: ((popup "0.5.0") (log4e "0.2.0") (yaxception "0.1"))
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -530,10 +530,8 @@ NOT-SWITCH-WINDOW is t or nil. If non-nil, disable switching window when select 
         (with-selected-window (or (and (windowp window) (window-live-p window) window)
                                   (nth 0 (get-buffer-window-list)))
           (save-restriction
-            (narrow-to-region (save-excursion (or (when (forward-line -100) (point))
-                                                  (point-min)))
-                              (save-excursion (or (when (forward-line 100) (point))
-                                                  (point-max))))
+            (narrow-to-region (save-excursion (forward-line (- (window-body-height))) (point))
+                              (save-excursion (forward-line (+ (window-body-height) 1)) (point)))
             (loop with srcmtd = (pophint--expand-function-symbol (assoc-default 'method source))
                   with init = (pophint--expand-function-symbol (assoc-default 'init source))
                   with requires = (or (assoc-default 'requires source)
