@@ -5,7 +5,7 @@
 ;; Author: Hiroaki Otsu <ootsuhiroaki@gmail.com>
 ;; Keywords: popup
 ;; URL: https://github.com/aki2o/emacs-pophint
-;; Version: 0.3.3
+;; Version: 0.3.4
 ;; Package-Requires: ((popup "0.5.0") (log4e "0.2.0") (yaxception "0.1"))
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -557,21 +557,22 @@ NOT-SWITCH-WINDOW is t or nil. If non-nil, disable switching window when select 
                                             (pophint--error "failed seek next popup point : %s\n%s"
                                                             (yaxception:get-text e) (yaxception:get-stack-trace-string e))))
                                         (< cnt maxtips))
-                             for mtext = (cond (orghint (pophint:hint-value orghint))
+                             for mtext = (cond (orghint             (pophint:hint-value orghint))
                                                ((match-beginning 1) (match-string-no-properties 1))
                                                (t                   (match-string-no-properties 0)))
                              for mstartpt = (cond (orghint (pophint:hint-startpt orghint))
-                                                  (t      (or (match-beginning 1) (match-beginning 0))))
+                                                  (t       (or (match-beginning 1) (match-beginning 0))))
                              for mendpt = (cond (orghint (pophint:hint-endpt orghint))
-                                                (t      (or (match-end 1) (match-end 0))))
-                             for ov = (when (not not-highlight) (make-overlay mstartpt mendpt))
-                             for hint = (make-pophint:hint :buffer buff :overlay ov :startpt mstartpt :endpt mendpt :value mtext)
-                             do (progn (incf cnt)
-                                       (pophint--trace "found hint. text:[%s] startpt:[%s] endpt:[%s]" mtext mstartpt mendpt)
-                                       (when ov
-                                         (overlay-put ov 'window (selected-window))
-                                         (overlay-put ov 'face 'pophint:match-face))
-                                       (setq hints (append hints (list hint)))))))
+                                                (t       (or (match-end 1) (match-end 0))))
+                             if (not (get-text-property mstartpt 'invisible))
+                             do (let* ((ov (when (not not-highlight) (make-overlay mstartpt mendpt)))
+                                       (hint (make-pophint:hint :buffer buff :overlay ov :startpt mstartpt :endpt mendpt :value mtext)))
+                                  (incf cnt)
+                                  (pophint--trace "found hint. text:[%s] startpt:[%s] endpt:[%s]" mtext mstartpt mendpt)
+                                  (when ov
+                                    (overlay-put ov 'window (selected-window))
+                                    (overlay-put ov 'face 'pophint:match-face))
+                                  (setq hints (append hints (list hint)))))))
             (pophint--show-tip hints)))
         hints)
       (yaxception:catch 'error e
