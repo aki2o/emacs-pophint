@@ -530,8 +530,7 @@ NOT-SWITCH-WINDOW is t or nil. If non-nil, disable switching window when select 
         (with-selected-window (or (and (windowp window) (window-live-p window) window)
                                   (nth 0 (get-buffer-window-list)))
           (save-restriction
-            (narrow-to-region (save-excursion (forward-line (- (window-body-height))) (point))
-                              (save-excursion (forward-line (+ (window-body-height) 1)) (point)))
+            (narrow-to-region (window-start) (window-end))
             (loop with srcmtd = (pophint--expand-function-symbol (assoc-default 'method source))
                   with init = (pophint--expand-function-symbol (assoc-default 'init source))
                   with requires = (or (assoc-default 'requires source)
@@ -562,7 +561,7 @@ NOT-SWITCH-WINDOW is t or nil. If non-nil, disable switching window when select 
                                                   (t       (or (match-beginning 1) (match-beginning 0))))
                              for mendpt = (cond (orghint (pophint:hint-endpt orghint))
                                                 (t       (or (match-end 1) (match-end 0))))
-                             if (not (get-text-property mstartpt 'invisible))
+                             if (not (invisible-p mstartpt))
                              do (let* ((ov (when (not not-highlight) (make-overlay mstartpt mendpt)))
                                        (hint (make-pophint:hint :buffer buff :overlay ov :startpt mstartpt :endpt mendpt :value mtext)))
                                   (incf cnt)
