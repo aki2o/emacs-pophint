@@ -5,7 +5,7 @@
 ;; Author: Hiroaki Otsu <ootsuhiroaki@gmail.com>
 ;; Keywords: popup
 ;; URL: https://github.com/aki2o/emacs-pophint
-;; Version: 0.3.6
+;; Version: 0.3.7
 ;; Package-Requires: ((popup "0.5.0") (log4e "0.2.0") (yaxception "0.1"))
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -592,7 +592,7 @@ NOT-SWITCH-WINDOW is t or nil. If non-nil, disable switching window when select 
   (yaxception:$
     (yaxception:try
       (pophint--debug "start event loop. hints:[%s] inputed:[%s] not-highlight:[%s] not-switch-direction:[%s] not-switch-window:[%s] window:[%s] action-name:[%s]\naction:%s\nsource:%s\nsources:%s"
-                      (length hints) inputed not-highlight not-switch-direction not-switch-window action-name action source sources)
+                      (length hints) inputed not-highlight not-switch-direction not-switch-window window action-name action source sources)
       (if (and (= (length hints) 1)
                (not (string= inputed "")))
           (pop hints)
