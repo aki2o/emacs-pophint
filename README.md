@@ -98,8 +98,9 @@ List the contents of this elisp at the following.
 
 * Yank ... Copy the selected text.
 * RangeYank ... Copy the range from the selected point to the point that is selected by showing hints again.
+* Search ... Do w3m-search using the selected text.
 
-About using action for any source, see Install/Configuration section below.
+About using action for any source, see Configuration section below.
 
 ### Show hints when set mark
 
@@ -111,12 +112,12 @@ You can customize this behavior.
 When you execute `isearch-exit` after `isearch`, by default it's bound to "RET", show hints and move the selected point.  
 You can customize this behavior.
 
-Install/Configuration
-=====================
+Install
+=======
 
-I recommend using el-get for installing this extension.  
-Downloading manually or using auto-install.el are OK,
-but installing each the following dependency is required in this case.
+### If use package.el
+
+2013/07/19 It's available.
 
 ### If use el-get.el
 
@@ -129,11 +130,23 @@ but installing each the following dependency is required in this case.
     (auto-install-from-url "https://raw.github.com/aki2o/emacs-pophint/master/pophint.el")
     (auto-install-from-url "https://raw.github.com/aki2o/emacs-pophint/master/pophint-config.el")
 
+**Note:** Installing each the following dependency is required in this case.
+
+### Manually
+
+Downloading manually is OK.
+
+**Note:** Installing each the following dependency is required in this case.
+
 ### Dependency
 
 * popup.el ... bundled with [auto-complete.el](https://github.com/auto-complete/auto-complete)
 * [log4e.el](https://github.com/aki2o/log4e)
 * [yaxception.el](https://github.com/aki2o/yaxception)
+
+
+Configuration
+=============
 
 ### Command/API
 
@@ -153,50 +166,84 @@ You'll be able to select the action and the command named `pophint:do-flexibly-.
 
 For other API and customization, see this elisp code or execute `customize-group "pophint"`.
 
-### Configuration
+### General
 
-* pophint-config:set-automatically-when-marking
-* pophint-config:set-yank-immediately-when-marking
-* pophint-config:set-automatically-when-isearch
-* pophint-config:set-relayout-when-rangeyank-start
+```lisp
+(require 'pophint)
+(require 'pophint-config)
 
-About them, see this elisp code and Configure section below.
+;; Customize max of popup tip. Default is 200.
+(setq pophint:popup-max-tips 400)
 
-### Configure
+;; When set-mark-command, start pop-up hint automatically.
+(pophint-config:set-automatically-when-marking t)
+;; When you select the shown hint-tip after set-mark-command, do yank immediately.
+(pophint-config:set-yank-immediately-when-marking t)
+;; When isearch, start pop-up hint automatically after exit isearch.
+(pophint-config:set-automatically-when-isearch t)
+;; When start searching the end point of RangeYank, layout the window position temporarily.
+(pophint-config:set-relayout-when-rangeyank-start t)
+;; When use function of w3m, open new tab.
+(pophint-config:set-w3m-use-new-tab t)
+```
 
-    (require 'pophint)
-    (require 'pophint-config)
+### Key Binding
 
-    ;; Customize max of popup tip. Default is 200.
-    (setq pophint:popup-max-tips 400)
+```lisp
+;; Basic Setting
+(define-key global-map (kbd "C-;") 'pophint:do)
+(define-key global-map (kbd "C-+") 'pophint:do-flexibly)
+(define-key global-map (kbd "M-;") 'pophint:redo)
+(define-key global-map (kbd "C-M-;") 'pophint:do-interactively)
 
-    ;; When set-mark-command, start pop-up hint automatically.
-    (pophint-config:set-automatically-when-marking t)
-    ;; When you select the shown hint-tip after set-mark-command, do yank immediately.
-    (pophint-config:set-yank-immediately-when-marking t)
-    ;; When isearch, start pop-up hint automatically after exit isearch.
-    (pophint-config:set-automatically-when-isearch t)
-    ;; When start searching the end point of RangeYank, layout the window position temporarily.
-    (pophint-config:set-relayout-when-rangeyank-start t)
+;; If you want to start some action immediately, bind key for the action.
+(define-key global-map (kbd "M-y") 'pophint:do-flexibly-yank)
+(define-key global-map (kbd "C-M-y") 'pophint:do-rangeyank)
+(define-key global-map (kbd "M-s") 'pophint:do-flexibly-search)
 
-    ;; Key binding
-    (define-key global-map (kbd "C-;") 'pophint:do)
-    (define-key global-map (kbd "C-+") 'pophint:do-flexibly)
-    (define-key global-map (kbd "M-;") 'pophint:redo)
-    (define-key global-map (kbd "C-M-;") 'pophint:do-interactively)
+;; For major mode
+(define-key dired-mode-map (kbd "f") 'pophint:do-dired-node)
+(add-to-list 'Info-mode-hook
+             '(lambda () (local-set-key (kbd "f") 'pophint:do-info-ref))
+             t)
+(add-to-list 'help-mode-hook
+             '(lambda () (local-set-key (kbd "f") 'pophint:do-help-btn))
+             t)
+```
 
-    ;; If you want to start some action immediately, bind key for the action.
-    (define-key global-map (kbd "M-y") 'pophint:do-flexibly-yank)
-    (define-key global-map (kbd "C-M-y") 'pophint:do-rangeyank)
+**Note:** `w3m-search`, which is package of w3m, is required for `pophint:do-flexibly-search`.
 
-    ;; If you want to use like Vimperator, add key binding for local map.
-    (define-key view-mode-map (kbd ";") 'pophint:do-flexibly)
-    (add-to-list 'w3m-mode-hook
-                 '(lambda () (local-set-key (kbd ";") 'pophint:do-flexibly))
-                 t)
-    (add-to-list 'Info-mode-hook
-                 '(lambda () (local-set-key (kbd ";") 'pophint:do-flexibly))
-                 t)
+### For w3m
+
+In default configuration, You can operate like Vimperator/Keysnail.  
+The key binding is the following.
+
+* Open link URL ... **f**
+* Open link URL (invert) ... **F**
+* Open link URL (continuously) ... **C-c C-e** / **; F**
+* Open link URL in current tab ... **; o**
+* Open link URL in new tab ... **; t**
+* Yank link URL ... **; y**
+* View source of link URL ... **; v**
+* Focus point of link URL ... **; RET**
+
+If you want to customize the binding,  
+re-define `pophint-config:w3m-set-keys` in your .emacs or site-start.el file.  
+The default definition is the following.
+
+```lisp
+(defun pophint-config:w3m-set-keys ()
+  (local-set-key (kbd "f")       'pophint:do-w3m-anchor)
+  (local-set-key (kbd "F")       'pophint-config:w3m-anchor-open-invert)
+  (local-set-key (kbd "C-c C-e") 'pophint-config:w3m-anchor-open-new-tab-continuously)
+  (local-set-key (kbd "; o")     'pophint-config:w3m-anchor-open)
+  (local-set-key (kbd "; t")     'pophint-config:w3m-anchor-open-new-tab)
+  (local-set-key (kbd "; F")     'pophint-config:w3m-anchor-open-new-tab-continuously)
+  (local-set-key (kbd "; y")     'pophint-config:w3m-anchor-yank)
+  (local-set-key (kbd "; v")     'pophint-config:w3m-anchor-view-source)
+  (local-set-key (kbd "; RET")   'pophint-config:w3m-anchor-focus))
+```
+
 
 Tested On
 =========
@@ -205,6 +252,7 @@ Tested On
 * popup.el ... 0.5.0
 * log4e.el ... 0.1
 * yaxception.el ... 0.1
+* w3m.el ... 1.4.472
 
 
 **Enjoy!!!**

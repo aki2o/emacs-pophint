@@ -5,7 +5,7 @@
 ;; Author: Hiroaki Otsu <ootsuhiroaki@gmail.com>
 ;; Keywords: popup
 ;; URL: https://github.com/aki2o/emacs-pophint
-;; Version: 0.3.2
+;; Version: 0.4.0
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -37,21 +37,7 @@
 
 ;;; Configuration:
 ;; 
-;; ;; When set-mark-command, start pop-up hint automatically.
-;; (pophint-config:set-automatically-when-marking t)
-;; 
-;; ;; When you select the shown hint-tip after set-mark-command, do yank immediately.
-;; (pophint-config:set-yank-immediately-when-marking t)
-;; 
-;; ;; When isearch, start pop-up hint automatically after exit isearch.
-;; (pophint-config:set-automatically-when-isearch t)
-;; 
-;; ;; When start searching the end point of RangeYank, layout the window position temporarily.
-;; (pophint-config:set-relayout-when-rangeyank-start t)
-;; 
-;; ;; If you want to start some action immediately, bind key for the action.
-;; (define-key global-map (kbd "M-y") 'pophint:do-flexibly-yank)
-;; (define-key global-map (kbd "C-M-y") 'pophint:do-rangeyank)
+;; see <https://github.com/aki2o/emacs-pophint/blob/master/README.md>.
 
 ;;; Customization:
 ;; 
@@ -76,6 +62,7 @@
 (require 'rx)
 (require 'regexp-opt)
 (require 'ffap nil t)
+(require 'w3m-search nil t)
 
 
 ;;;;;;;;;;;;;;;;;;;;;
@@ -472,6 +459,31 @@ It's a buffer local variable and list like `pophint-config:quote-chars'."
 ;;;;;;;;;;;;;
 ;; For w3m
 
+(defvar pophint-config:w3m-use-new-tab t)
+(defun pophint-config:set-w3m-use-new-tab (activate)
+  "Whether open new tab of w3m when action by w3m function."
+  (setq pophint-config:w3m-use-new-tab activate))
+
+(pophint:defaction :key "s"
+                   :name "Search"
+                   :description "Do `w3m-search' about the text of selected hint-tip."
+                   :action (lambda (hint)
+                             (if (not (functionp 'w3m-search-do-search))
+                                 (message "Not exist function 'w3m-search-do-search'.")
+                               (let* ((engine (or w3m-search-default-engine
+                                                  (completing-read "Select search engine: "
+                                                                   w3m-search-engine-alist
+                                                                   nil
+                                                                   t
+                                                                   nil
+                                                                   'w3m-search-engine-history)))
+                                      (str (read-string "Input search words: "
+                                                        (pophint:hint-value hint)))
+                                      (func (if pophint-config:w3m-use-new-tab
+                                                'w3m-goto-url-new-session
+                                              'w3m-goto-url)))
+                                 (w3m-search-do-search func engine str)))))
+
 (pophint:defsource
   :name "w3m-anchor"
   :description "Anchor on w3m."
@@ -498,10 +510,95 @@ It's a buffer local variable and list like `pophint-config:quote-chars'."
                                                 :value a))))))
             (action . (lambda (hint)
                         (goto-char (pophint:hint-startpt hint))
-                        (w3m-view-this-url)))))
+                        (if pophint-config:w3m-use-new-tab
+                            (w3m-view-this-url-new-session)
+                          (w3m-view-this-url))))))
+
+(defun pophint-config:do-w3m-anchor-sentinel (method)
+  (let ((pophint-config:w3m-use-new-tab (case method
+                                          ('open   nil)
+                                          ('tab    t)
+                                          ('invert (not pophint-config:w3m-use-new-tab)))))
+    (pophint:do-w3m-anchor)))
+
+(defun pophint-config:w3m-anchor-open ()
+  "Do `pophint:do-w3m-anchor' in current tab."
+  (interactive)
+  (pophint-config:do-w3m-anchor-sentinel 'open))
+
+(defun pophint-config:w3m-anchor-open-new-tab ()
+  "Do `pophint:do-w3m-anchor' in new tab."
+  (interactive)
+  (pophint-config:do-w3m-anchor-sentinel 'tab))
+
+(defun pophint-config:w3m-anchor-open-invert ()
+  "Do `pophint:do-w3m-anchor' inverting `pophint-config:w3m-use-new-tab'."
+  (interactive)
+  (pophint-config:do-w3m-anchor-sentinel 'invert))
+
+(defun pophint-config:w3m-anchor-open-new-tab-continuously ()
+  "Do `pophint:do-w3m-anchor' in new tab continuously."
+  (interactive)
+  (let ((buff (current-buffer))
+        (pt (point)))
+    (pophint-config:do-w3m-anchor-sentinel 'tab)
+    (switch-to-buffer buff)
+    (goto-char pt)
+    (pophint-config:w3m-anchor-open-new-tab-continuously)))
+
+(defun pophint-config:w3m-anchor-yank ()
+  "Yank using `pophint:source-w3m-anchor'."
+  (interactive)
+  (pophint:do :source pophint:source-w3m-anchor
+              :action pophint-config:yank-action))
+
+(defun pophint-config:w3m-anchor-view-source ()
+  "View source using `pophint:source-w3m-anchor'."
+  (interactive)
+  (pophint:do :source pophint:source-w3m-anchor
+              :action (lambda (hint)
+                        (let* ((sbuff (current-buffer))
+                               (w3m-current-url (save-excursion
+                                                  (goto-char (pophint:hint-startpt hint))
+                                                  (or (w3m-url-valid (w3m-anchor))
+                                                      (w3m-active-region-or-url-at-point t))))
+                               (html (when w3m-current-url
+                                       (w3m-copy-buffer)
+                                       (w3m-view-source)
+                                       (buffer-string)))
+                               (mode (assoc-default "hoge.html" auto-mode-alist 'string-match))
+                               (buff (generate-new-buffer "*w3m view source*")))
+                          (w3m-delete-buffer)
+                          (with-current-buffer buff
+                            (insert html)
+                            (goto-char (point-min))
+                            (set-buffer-modified-p nil)
+                            (when (functionp mode)
+                              (funcall mode)))
+                          (switch-to-buffer sbuff)
+                          (display-buffer buff)))))
+
+(defun pophint-config:w3m-anchor-focus ()
+  "Focus using `pophint:source-w3m-anchor'."
+  (interactive)
+  (pophint:do :source pophint:source-w3m-anchor
+              :action (lambda (hint)
+                        (goto-char (pophint:hint-startpt hint)))))
+
+(defun pophint-config:w3m-set-keys ()
+  (local-set-key (kbd "f")       'pophint:do-w3m-anchor)
+  (local-set-key (kbd "F")       'pophint-config:w3m-anchor-open-invert)
+  (local-set-key (kbd "C-c C-e") 'pophint-config:w3m-anchor-open-new-tab-continuously)
+  (local-set-key (kbd "; o")     'pophint-config:w3m-anchor-open)
+  (local-set-key (kbd "; t")     'pophint-config:w3m-anchor-open-new-tab)
+  (local-set-key (kbd "; F")     'pophint-config:w3m-anchor-open-new-tab-continuously)
+  (local-set-key (kbd "; y")     'pophint-config:w3m-anchor-yank)
+  (local-set-key (kbd "; v")     'pophint-config:w3m-anchor-view-source)
+  (local-set-key (kbd "; RET")   'pophint-config:w3m-anchor-focus))
 
 (defun pophint-config:w3m-setup ()
-  (add-to-list 'pophint:sources 'pophint:source-w3m-anchor))
+  (add-to-list 'pophint:sources 'pophint:source-w3m-anchor)
+  (pophint-config:w3m-set-keys))
 
 (add-hook 'w3m-mode-hook 'pophint-config:w3m-setup t)
 
