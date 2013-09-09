@@ -117,7 +117,7 @@ Install
 
 ### If use package.el
 
-2013/07/19 It's available.
+2013/07/19 It's available by using melpa.  
 
 ### If use el-get.el
 
@@ -127,14 +127,16 @@ Install
 
 ### If use auto-install.el
 
-    (auto-install-from-url "https://raw.github.com/aki2o/emacs-pophint/master/pophint.el")
-    (auto-install-from-url "https://raw.github.com/aki2o/emacs-pophint/master/pophint-config.el")
+```lisp
+(auto-install-from-url "https://raw.github.com/aki2o/emacs-pophint/master/pophint.el")
+(auto-install-from-url "https://raw.github.com/aki2o/emacs-pophint/master/pophint-config.el")
+```
 
 **Note:** Installing each the following dependency is required in this case.
 
 ### Manually
 
-Downloading manually is OK.
+Download pophint.el/pophint-config.el and put on your load-path.
 
 **Note:** Installing each the following dependency is required in this case.
 
