@@ -13,6 +13,7 @@ Then, if you push the alphabet, you can jump the linked URL.
 
 This extension provides same interface on Emacs.
 
+
 Screenshot
 ==========
 
@@ -29,6 +30,7 @@ If you push the shown alphabet, cursol is moved to the point like the following.
 The following is in the case that pushed "yj". Large alphabet is shown, but inputing small alphabet is OK.
 
 ![demo3](image/demo3.png)
+
 
 Feature
 =======
@@ -69,6 +71,45 @@ the message is shown in minibuffer like the following.
 
 Then, you can switch a target window by pushing a "w" key.  
 And, you can customize the key binding.
+
+
+Install
+=======
+
+### If use package.el
+
+2013/07/19 It's available by using melpa.  
+
+### If use el-get.el
+
+2013/05/01 Now during an application for registration in el-get.  
+2013/06/30 But, not yet regist.  
+2013/07/26 It's available. But, master branch only.  
+
+### If use auto-install.el
+
+```lisp
+(auto-install-from-url "https://raw.github.com/aki2o/emacs-pophint/master/pophint.el")
+(auto-install-from-url "https://raw.github.com/aki2o/emacs-pophint/master/pophint-config.el")
+```
+
+**Note:** Installing each the following dependency is required in this case.
+
+### Manually
+
+Download pophint.el/pophint-config.el and put on your load-path.
+
+**Note:** Installing each the following dependency is required in this case.
+
+### Dependency
+
+* popup.el ... bundled with [auto-complete.el](https://github.com/auto-complete/auto-complete)
+* [log4e.el](https://github.com/aki2o/log4e)
+* [yaxception.el](https://github.com/aki2o/yaxception)
+
+
+see https://github.com/aki2o/emacs-pophint/wiki
+
 
 pophint-config.el
 =================
@@ -111,40 +152,6 @@ You can customize this behavior.
 
 When you execute `isearch-exit` after `isearch`, by default it's bound to "RET", show hints and move the selected point.  
 You can customize this behavior.
-
-Install
-=======
-
-### If use package.el
-
-2013/07/19 It's available by using melpa.  
-
-### If use el-get.el
-
-2013/05/01 Now during an application for registration in el-get.  
-2013/06/30 But, not yet regist.  
-2013/07/26 It's available. But, master branch only.  
-
-### If use auto-install.el
-
-```lisp
-(auto-install-from-url "https://raw.github.com/aki2o/emacs-pophint/master/pophint.el")
-(auto-install-from-url "https://raw.github.com/aki2o/emacs-pophint/master/pophint-config.el")
-```
-
-**Note:** Installing each the following dependency is required in this case.
-
-### Manually
-
-Download pophint.el/pophint-config.el and put on your load-path.
-
-**Note:** Installing each the following dependency is required in this case.
-
-### Dependency
-
-* popup.el ... bundled with [auto-complete.el](https://github.com/auto-complete/auto-complete)
-* [log4e.el](https://github.com/aki2o/log4e)
-* [yaxception.el](https://github.com/aki2o/yaxception)
 
 
 Configuration
