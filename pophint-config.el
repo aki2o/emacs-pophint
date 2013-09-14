@@ -5,7 +5,7 @@
 ;; Author: Hiroaki Otsu <ootsuhiroaki@gmail.com>
 ;; Keywords: popup
 ;; URL: https://github.com/aki2o/emacs-pophint
-;; Version: 0.4.0
+;; Version: 0.5.0
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -102,10 +102,8 @@
 
 (defvar pophint-config:yank-range-action
   (lambda (hint)
-    (let* ((buff (pophint:hint-buffer hint))
-           (wnd (get-buffer-window buff)))
-      (when (and (buffer-live-p buff)
-                 (windowp wnd)
+    (let ((wnd (pophint:hint-window hint)))
+      (when (and (windowp wnd)
                  (window-live-p wnd))
         (save-window-excursion
           (save-excursion
@@ -113,7 +111,6 @@
               (goto-char (pophint:hint-startpt hint))
               (setq pophint-config:yank-startpt (point))
               (when pophint-config:relayout-when-yank-range-start-p
-                (switch-to-buffer buff)
                 (recenter 0)
                 (delete-other-windows))
               (pophint:do :source '((method . pophint-config:collect-word-methods))
@@ -126,7 +123,7 @@
                                                                                 (pophint:hint-startpt hint)))))))))))))
 
 (defun pophint-config:set-relayout-when-rangeyank-start (activate)
-  "Whether re-layouting window or not when start searching the end point of RangeYank."
+  "Whether re-layouting window when start searching the end point of RangeYank."
   (setq pophint-config:relayout-when-yank-range-start-p activate))
 
 (pophint:defaction :key "Y"
@@ -284,14 +281,15 @@ It's a buffer local variable and list like `pophint-config:quote-chars'."
 
 (defvar pophint-config:yank-immediately-when-marking-p nil)
 (defun pophint-config:set-yank-immediately-when-marking (activate)
-  "Whether yank immediately or not when select hint-tip after set mark."
+  "Whether yank immediately when select hint-tip after `set-mark-command' or `cua-set-mark'."
   (setq pophint-config:yank-immediately-when-marking-p activate))
 
 (defadvice set-mark-command (after do-pophint disable)
   (pophint--trace "start do when set-mark")
   (pophint:do :not-highlight t
               :not-switch-window t
-              :source '((method . pophint-config:collect-word-methods)
+              :source '((shown . "Region")
+                        (method . pophint-config:collect-word-methods)
                         (action . (lambda (hint)
                                     (let* ((currpt (point)))
                                       (goto-char (pophint:hint-startpt hint))
@@ -302,7 +300,8 @@ It's a buffer local variable and list like `pophint-config:quote-chars'."
   (pophint--trace "start do when cua-set-mark")
   (pophint:do :not-highlight t
               :not-switch-window t
-              :source '((regexp . "[^a-zA-Z0-9]+")
+              :source '((shown . "Region")
+                        (regexp . "[^a-zA-Z0-9]+")
                         (action . (lambda (hint)
                                     (let* ((currpt (point)))
                                       (goto-char (pophint:hint-startpt hint))
@@ -310,7 +309,7 @@ It's a buffer local variable and list like `pophint-config:quote-chars'."
                                         (kill-ring-save currpt (point)))))))))
 
 (defun pophint-config:set-automatically-when-marking (activate)
-  "Whether the pop-up is automatically or not when set mark."
+  "Whether do pop-up automatically when `set-mark-command' or `cua-set-mark'."
   (cond (activate
          (ad-enable-advice 'set-mark-command 'after 'do-pophint)
          (ad-enable-advice 'cua-set-mark 'after 'do-pophint))
@@ -331,7 +330,8 @@ It's a buffer local variable and list like `pophint-config:quote-chars'."
     (pophint--trace "start do when isearch-exit")
     (pophint:do :not-highlight t
                 :not-switch-window t
-                :source '((init . (lambda ()
+                :source '((shown . "Cand")
+                          (init . (lambda ()
                                     (setq pophint-config:index-of-isearch-overlays 0)))
                           (method . (lambda ()
                                       (pophint--trace "overlay count:[%s] index:[%s]"
@@ -354,7 +354,7 @@ It's a buffer local variable and list like `pophint-config:quote-chars'."
                                       (goto-char (pophint:hint-startpt hint))))))))
 
 (defun pophint-config:set-automatically-when-isearch (activate)
-  "Whether the pop-up is automatically or not when exit isearch."
+  "Whether do pop-up automatically when `isearch-exit'."
   (if activate
       (ad-enable-advice 'isearch-exit 'before 'do-pophint)
     (ad-disable-advice 'isearch-exit 'before 'do-pophint))
@@ -376,6 +376,41 @@ It's a buffer local variable and list like `pophint-config:quote-chars'."
       ad-do-it
       (setq pophint-config:active-when-isearch-exit-p exitconf)))
   )
+
+
+;;;;;;;;;;;;;;;;;;;;;;
+;; For other window
+
+(defvar pophint-config:active-when-other-window-p nil)
+(defvar pophint-config:current-window nil)
+(defadvice other-window (around do-pophint disable)
+  (if (and (interactive-p)
+           pophint-config:active-when-other-window-p
+           (> (length (window-list)) 2))
+      (pophint:do :not-highlight t
+                  :direction 'around
+                  :allwindow t
+                  :source '((shown . "Wnd")
+                            (requires . 0)
+                            (method . (lambda ()
+                                        (if (eq pophint-config:current-window
+                                                (selected-window))
+                                            (setq pophint-config:current-window nil)
+                                          (setq pophint-config:current-window (selected-window))
+                                          (make-pophint:hint :startpt (point-min) :endpt (point) :value ""))))
+                            (action . (lambda (hint)
+                                        (funcall pophint--default-action hint)
+                                        (goto-char (pophint:hint-endpt hint))))))
+    ad-do-it))
+
+(defun pophint-config:set-do-when-other-window (activate)
+  "Whether do pop-up when `other-window'."
+  (if activate
+      (ad-enable-advice 'other-window 'around 'do-pophint)
+    (ad-disable-advice 'other-window 'around 'do-pophint))
+  (ad-activate 'other-window)
+  (setq pophint-config:active-when-other-window-p activate))
+
 
 ;;;;;;;;;;;;;;;
 ;; For elisp
