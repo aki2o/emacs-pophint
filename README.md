@@ -1,9 +1,9 @@
 What's this?
 ============
 
-This is a extension of Emacs that provide navigation like the Vimperator Hint Mode of Firfox.
+This is a extension of Emacs that provide navigation like the Vimperator/Keysnail Hint Mode of Firfox.
 
-Do you know Vimperator of Firefox Addon?  
+Do you know Vimperator/Keysnail of Firefox Addon?  
 If you don't know it, see a screenshot below.
 
 ![vimperator](image/vimperator.png)
@@ -72,6 +72,11 @@ the message is shown in minibuffer like the following.
 Then, you can switch a target window by pushing a "w" key.  
 And, you can customize the key binding.
 
+### Various Functions for user
+
+The above feature is not concrete about what the user will can do.  
+About it, see https://github.com/aki2o/emacs-pophint/wiki
+
 
 Install
 =======
@@ -106,152 +111,6 @@ Download pophint.el/pophint-config.el and put on your load-path.
 * popup.el ... bundled with [auto-complete.el](https://github.com/auto-complete/auto-complete)
 * [log4e.el](https://github.com/aki2o/log4e)
 * [yaxception.el](https://github.com/aki2o/yaxception)
-
-
-see https://github.com/aki2o/emacs-pophint/wiki
-
-
-pophint-config.el
-=================
-
-This elisp file define some sources and actions that I want.  
-I guess you can define source and action that you want by seeing this elisp code.  
-List the contents of this elisp at the following.
-
-### pophint:global-sources
-
-`pophint:global-sources` is a variable. It's a list of source. It's avilable for all buffers.
-
-* Sym ... Characters of symbol.
-* Quoted ... Enclosed part by character for quoting. (e.g. ")
-* URL/Path ... String like URL or Filepath format.
-* Cmt ... Comment part of one line.
-* Line ... Text of one line.
-
-### pophint:sources
-
-`pophint:sources` is a buffer local variable. It's a list of source.
-
-* Link ... Formatted text for linking. It's enabled on w3m-mode, help-mode and info-mode.
-* Node ... Name part of directory and file in the directory on dired-mode.
-
-### Action for any source
-
-* Yank ... Copy the selected text.
-* RangeYank ... Copy the range from the selected point to the point that is selected by showing hints again.
-* Search ... Do w3m-search using the selected text.
-
-About using action for any source, see Configuration section below.
-
-### Show hints when set mark
-
-When you execute `set-mark-command`, show hints for end point of region and copy the selected region.  
-You can customize this behavior.
-
-### Show hints when isearch
-
-When you execute `isearch-exit` after `isearch`, by default it's bound to "RET", show hints and move the selected point.  
-You can customize this behavior.
-
-
-Configuration
-=============
-
-### Command/API
-
-This extension provides the following commands.
-
-* pophint:do ... A base command. Show hints using given source, action and so on.
-* pophint:do-flexibly ... Do `pophint:do` using `pophint:global-sources` and `pophint:sources`.
-* pophint:do-interactively ... Inquire about action for user and do `pophint:do-flexibly` using the action. 
-* pophint:redo ... Do last `pophint:do` again.
-
-This extension provides the following API.
-
-* pophint:defsource ... Define source.
-It's defined as variable named `pophint:source-...` and the command named `pophint:do-...` is defined for the source.
-* pophint:defaction ... Define action.
-You'll be able to select the action and the command named `pophint:do-flexibly-...` is defined for the action.
-
-For other API and customization, see this elisp code or execute `customize-group "pophint"`.
-
-### General
-
-```lisp
-(require 'pophint)
-(require 'pophint-config)
-
-;; Customize max of popup tip. Default is 200.
-(setq pophint:popup-max-tips 400)
-
-;; When set-mark-command, start pop-up hint automatically.
-(pophint-config:set-automatically-when-marking t)
-;; When you select the shown hint-tip after set-mark-command, do yank immediately.
-(pophint-config:set-yank-immediately-when-marking t)
-;; When isearch, start pop-up hint automatically after exit isearch.
-(pophint-config:set-automatically-when-isearch t)
-;; When start searching the end point of RangeYank, layout the window position temporarily.
-(pophint-config:set-relayout-when-rangeyank-start t)
-;; When use function of w3m, open new tab.
-(pophint-config:set-w3m-use-new-tab t)
-```
-
-### Key Binding
-
-```lisp
-;; Basic Setting
-(define-key global-map (kbd "C-;") 'pophint:do)
-(define-key global-map (kbd "C-+") 'pophint:do-flexibly)
-(define-key global-map (kbd "M-;") 'pophint:redo)
-(define-key global-map (kbd "C-M-;") 'pophint:do-interactively)
-
-;; If you want to start some action immediately, bind key for the action.
-(define-key global-map (kbd "M-y") 'pophint:do-flexibly-yank)
-(define-key global-map (kbd "C-M-y") 'pophint:do-rangeyank)
-(define-key global-map (kbd "M-s") 'pophint:do-flexibly-search)
-
-;; For major mode
-(define-key dired-mode-map (kbd "f") 'pophint:do-dired-node)
-(add-to-list 'Info-mode-hook
-             '(lambda () (local-set-key (kbd "f") 'pophint:do-info-ref))
-             t)
-(add-to-list 'help-mode-hook
-             '(lambda () (local-set-key (kbd "f") 'pophint:do-help-btn))
-             t)
-```
-
-**Note:** `w3m-search`, which is package of w3m, is required for `pophint:do-flexibly-search`.
-
-### For w3m
-
-In default configuration, You can operate like Vimperator/Keysnail.  
-The key binding is the following.
-
-* Open link URL ... **f**
-* Open link URL (invert) ... **F**
-* Open link URL (continuously) ... **C-c C-e** / **; F**
-* Open link URL in current tab ... **; o**
-* Open link URL in new tab ... **; t**
-* Yank link URL ... **; y**
-* View source of link URL ... **; v**
-* Focus point of link URL ... **; RET**
-
-If you want to customize the binding,  
-re-define `pophint-config:w3m-set-keys` in your .emacs or site-start.el file.  
-The default definition is the following.
-
-```lisp
-(defun pophint-config:w3m-set-keys ()
-  (local-set-key (kbd "f")       'pophint:do-w3m-anchor)
-  (local-set-key (kbd "F")       'pophint-config:w3m-anchor-open-invert)
-  (local-set-key (kbd "C-c C-e") 'pophint-config:w3m-anchor-open-new-tab-continuously)
-  (local-set-key (kbd "; o")     'pophint-config:w3m-anchor-open)
-  (local-set-key (kbd "; t")     'pophint-config:w3m-anchor-open-new-tab)
-  (local-set-key (kbd "; F")     'pophint-config:w3m-anchor-open-new-tab-continuously)
-  (local-set-key (kbd "; y")     'pophint-config:w3m-anchor-yank)
-  (local-set-key (kbd "; v")     'pophint-config:w3m-anchor-view-source)
-  (local-set-key (kbd "; RET")   'pophint-config:w3m-anchor-focus))
-```
 
 
 Tested On
