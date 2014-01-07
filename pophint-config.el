@@ -5,7 +5,7 @@
 ;; Author: Hiroaki Otsu <ootsuhiroaki@gmail.com>
 ;; Keywords: popup
 ;; URL: https://github.com/aki2o/emacs-pophint
-;; Version: 0.5.0
+;; Version: 0.5.1
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -419,6 +419,15 @@ It's a buffer local variable and list like `pophint-config:quote-chars'."
   (setq pophint-config:exclude-quote-chars '("'" "`")))
 
 (add-hook 'emacs-lisp-mode-hook 'pophint-config:elisp-setup t)
+
+
+;;;;;;;;;;;;;;;;;;;;;;
+;; For visual-basic
+
+(defun pophint-config:vb-setup ()
+  (setq pophint-config:exclude-quote-chars '("'")))
+
+(add-hook 'visual-basic-mode-hook 'pophint-config:vb-setup t)
 
 
 ;;;;;;;;;;;;;;
