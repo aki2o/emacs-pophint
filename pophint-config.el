@@ -5,7 +5,7 @@
 ;; Author: Hiroaki Otsu <ootsuhiroaki@gmail.com>
 ;; Keywords: popup
 ;; URL: https://github.com/aki2o/emacs-pophint
-;; Version: 0.5.1
+;; Version: 0.6.0
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -376,6 +376,38 @@ It's a buffer local variable and list like `pophint-config:quote-chars'."
       ad-do-it
       (setq pophint-config:active-when-isearch-exit-p exitconf)))
   )
+
+(defvar pophint-config:isearch-action-result nil)
+(defun pophint-config:isearch-setup ()
+  (let ((hint pophint-config:isearch-action-result))
+    (when (pophint:hint-p hint)
+      (setq isearch-string (pophint:hint-value hint))
+      (setq isearch-message (pophint:hint-value hint)))))
+
+(add-hook 'isearch-mode-hook 'pophint-config:isearch-setup t)
+
+(pophint:defaction :key "i"
+                   :name "ISearch"
+                   :description "Do `isearch' from the text of selected hint-tip."
+                   :action (lambda (hint)
+                             (let ((currpt (point))
+                                   (wnd (pophint:hint-window hint))
+                                   (pophint-config:isearch-action-result hint))
+                               (when (and (windowp wnd)
+                                          (window-live-p wnd))
+                                 (cond ((eq (get-buffer-window) wnd)
+                                        (goto-char (pophint:hint-startpt hint))
+                                        (or (isearch-forward)
+                                            (goto-char currpt)))
+                                       (t
+                                        (let ((retpt (save-window-excursion
+                                                       (with-selected-window wnd
+                                                         (goto-char (pophint:hint-startpt hint))
+                                                         (and (isearch-forward)
+                                                              (point))))))
+                                          (when retpt
+                                            (select-window wnd)
+                                            (goto-char retpt)))))))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;
