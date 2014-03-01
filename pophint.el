@@ -5,7 +5,7 @@
 ;; Author: Hiroaki Otsu <ootsuhiroaki@gmail.com>
 ;; Keywords: popup
 ;; URL: https://github.com/aki2o/emacs-pophint
-;; Version: 0.5.0
+;; Version: 0.6.0
 ;; Package-Requires: ((popup "0.5.0") (log4e "0.2.0") (yaxception "0.1"))
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -70,6 +70,8 @@
 ;; Whether switch direction of pop-up.
 ;; `pophint:do-allwindow-p'
 ;; Whether do pop-up at all windows.
+;; `pophint:use-pos-tip'
+;; Whether use pos-tip.el to show prompt.
 ;; 
 ;;  *** END auto-documentation
 
@@ -92,6 +94,8 @@
 ;; 
 ;;  *** END auto-documentation
 ;; [EVAL] (autodoc-document-lisp-buffer :type 'command :prefix "pophint:" :docstring t)
+;; `pophint:toggle-use-pos-tip'
+;; Toggle the status of `pophint:use-pos-tip'.
 ;; `pophint:redo'
 ;; Redo last pop-up hint-tip using any sources.
 ;; `pophint:do-interactively'
@@ -119,6 +123,7 @@
 (require 'popup)
 (require 'yaxception)
 (require 'log4e)
+(require 'pos-tip nil t)
 
 
 (defgroup pophint nil
@@ -168,6 +173,11 @@ If nil, it means limitless."
   :type 'boolean
   :group 'pophint)
 
+(defcustom pophint:use-pos-tip nil
+  "Whether use pos-tip.el to show prompt."
+  :type 'boolean
+  :group 'pophint)
+
 (defface pophint:tip-face
   '((t (:background "khaki1" :foreground "black" :bold t)))
   "Face for the pop-up hint."
@@ -176,6 +186,13 @@ If nil, it means limitless."
 (defface pophint:match-face
   '((t (:background "cornflower blue" :foreground "white")))
   "Face for matched hint text."
+  :group 'pophint)
+
+(defface pophint:pos-tip-face
+  '((((class color) (background dark))  (:background "ivory" :foreground "black"))
+    (((class color) (background light)) (:background "gray10" :foreground "white"))
+    (t                                  (:background "ivory" :foreground "black")))
+  "Face for the tip of pos-tip.el"
   :group 'pophint)
 
 (defvar pophint:sources nil
@@ -343,6 +360,12 @@ It return 'around or 'forward or 'backward."
   pophint--current-direction)
 
 ;;;###autoload
+(defun pophint:toggle-use-pos-tip ()
+  "Toggle the status of `pophint:use-pos-tip'."
+  (interactive)
+  (setq pophint:use-pos-tip (not pophint:use-pos-tip)))
+
+;;;###autoload
 (defun pophint:redo ()
   "Redo last pop-up hint-tip using any sources."
   (interactive)
@@ -358,7 +381,7 @@ It return 'around or 'forward or 'backward."
   (interactive)
   (yaxception:$
     (yaxception:try
-      (let* ((key (popup-menu-read-key-sequence nil (pophint--get-read-prompt-interactively)))
+      (let* ((key (pophint--menu-read-key-sequence (pophint--get-read-prompt-interactively)))
              (gbinding (lookup-key (current-global-map) key))
              (binding (or (when (current-local-map)
                             (lookup-key (current-local-map) key))
@@ -417,7 +440,8 @@ For detail, see `pophint:do'."
                          not-highlight
                          window
                          not-switch-window
-                         allwindow)
+                         allwindow
+                         (use-pos-tip 'global))
   "Do pop-up hint-tip using given source on target to direction.
 
 SOURCE is alist or symbol of alist. About its value, see `pophint:defsource'.
@@ -434,12 +458,14 @@ DIRECTION is symbol. The allowed value is the following.
 NOT-HIGHLIGHT is t or nil. If non-nil, don't highlight matched text when pop-up hint.
 WINDOW is window. find next point of pop-up in the window. If nil, its value is `selected-window'.
 NOT-SWITCH-WINDOW is t or nil. If non-nil, disable switching window when select shown hint.
-ALLWINDOW is t or nil. If non-nil, pop-up at all windows in frame."
+ALLWINDOW is t or nil. If non-nil, pop-up at all windows in frame.
+USE-POS-TIP is t or nil. If omitted, inherit `pophint:use-pos-tip'."
   (interactive)
   (yaxception:$
     (yaxception:try
-      (pophint--debug "start do. direction:[%s] not-highlight:[%s] window:[%s] not-switch-window:[%s] allwindow:[%s] action-name:[%s]\naction:%s\nsource:%s\nsources:%s"
-                      direction not-highlight window not-switch-window allwindow action-name action source sources)
+      (pophint--debug
+       "start do. direction:[%s] not-highlight:[%s] window:[%s] not-switch-window:[%s] allwindow:[%s] action-name:[%s]\naction:%s\nsource:%s\nsources:%s"
+       direction not-highlight window not-switch-window allwindow action-name action source sources)
       (pophint--delete-last-hints)
       (when (not pophint:switch-direction-p)
         (setq pophint--current-direction 'around))
@@ -460,6 +486,7 @@ ALLWINDOW is t or nil. If non-nil, pop-up at all windows in frame."
                              (not pophint--disable-allwindow-p)
                              (not window)
                              (not not-switch-window)))
+             (pophint:use-pos-tip (if (eq use-pos-tip 'global) pophint:use-pos-tip use-pos-tip))
              (hints (pophint--get-hints :source source
                                         :direction currdirection
                                         :not-highlight not-highlight
@@ -596,7 +623,7 @@ ALLWINDOW is t or nil. If non-nil, pop-up at all windows in frame."
                (srcmtd (pophint--expand-function-symbol (assoc-default 'method source)))
                (srchfuncs (pophint--get-search-functions srcmtd direction))
                (maxtips (pophint--get-max-tips source direction)))
-          (dolist (wnd (or (when allwindow (window-list))
+          (dolist (wnd (or (when allwindow (window-list nil t))
                            (and (windowp window) (window-live-p window) (list window))
                            (list (nth 0 (get-buffer-window-list)))))
             (with-selected-window wnd
@@ -604,9 +631,11 @@ ALLWINDOW is t or nil. If non-nil, pop-up at all windows in frame."
                 (narrow-to-region (window-start) (window-end))
                 (dolist (srchfnc srchfuncs)
                   (save-excursion
-                    (loop initially (progn (pophint--trace "start searching hint. require:[%s] max:[%s] buffer:[%s] point:[%s]\nregexp: %s\nfunc: %s"
-                                                           requires maxtips (current-buffer) (point) re srchfnc)
-                                           (when (functionp init) (funcall init)))
+                    (loop initially (progn
+                                      (pophint--trace
+                                       "start searching hint. require:[%s] max:[%s] buffer:[%s] point:[%s]\nregexp: %s\nfunc: %s"
+                                       requires maxtips (current-buffer) (point) re srchfnc)
+                                      (when (functionp init) (funcall init)))
                           with cnt = 0
                           with orghint
                           while (and (yaxception:$
@@ -652,8 +681,9 @@ ALLWINDOW is t or nil. If non-nil, pop-up at all windows in frame."
                                   allwindow)
   (yaxception:$
     (yaxception:try
-      (pophint--debug "start event loop. hints:[%s] inputed:[%s] not-highlight:[%s] not-switch-direction:[%s] not-switch-window:[%s] window:[%s] allwindow:[%s] action-name:[%s]\naction:%s\nsource:%s\nsources:%s"
-                      (length hints) inputed not-highlight not-switch-direction not-switch-window window allwindow action-name action source sources)
+      (pophint--debug
+       "start event loop. hints:[%s] inputed:[%s] not-highlight:[%s] not-switch-direction:[%s] not-switch-window:[%s] window:[%s] allwindow:[%s] action-name:[%s]\naction:%s\nsource:%s\nsources:%s"
+       (length hints) inputed not-highlight not-switch-direction not-switch-window window allwindow action-name action source sources)
       (if (and (= (length hints) 1)
                (not (string= inputed "")))
           (pop hints)
@@ -661,14 +691,14 @@ ALLWINDOW is t or nil. If non-nil, pop-up at all windows in frame."
                                       (< (length sources) 2)))
                (key (progn
                       (setq pophint--last-hints hints)
-                      (popup-menu-read-key-sequence nil
-                                                    (pophint--get-read-prompt :count (length hints)
-                                                                              :actdesc action-name
-                                                                              :source source
-                                                                              :sources sources
-                                                                              :not-switch-direction not-switch-direction
-                                                                              :not-switch-source not-switch-source
-                                                                              :not-switch-window (or not-switch-window allwindow)))))
+                      (pophint--menu-read-key-sequence 
+                       (pophint--get-read-prompt :count (length hints)
+                                                 :actdesc action-name
+                                                 :source source
+                                                 :sources sources
+                                                 :not-switch-direction not-switch-direction
+                                                 :not-switch-source not-switch-source
+                                                 :not-switch-window (or not-switch-window allwindow)))))
                (gbinding (progn (pophint--debug "got input key")
                                 (lookup-key (current-global-map) key)))
                (binding (or (when (current-local-map)
@@ -811,6 +841,38 @@ ALLWINDOW is t or nil. If non-nil, pop-up at all windows in frame."
       (pophint--error "failed event loop : %s\n%s" (yaxception:get-text e) (yaxception:get-stack-trace-string e))
       (pophint--log-open-log-if-debug))))
 
+(defun pophint--menu-read-key-sequence (prompt &optional timeout)
+  ;; Coding by referring to popup-menu-read-key-sequence
+  (catch 'timeout
+    (let ((timer (and timeout
+                      (run-with-timer timeout nil
+                                      (lambda ()
+                                        (if (zerop (length (this-command-keys)))
+                                            (throw 'timeout nil))))))
+          (old-global-map (current-global-map))
+          (temp-global-map (make-sparse-keymap))
+          (overriding-terminal-local-map (make-sparse-keymap)))
+      (substitute-key-definition 'keyboard-quit 'keyboard-quit temp-global-map old-global-map)
+      (define-key temp-global-map [menu-bar] (lookup-key old-global-map [menu-bar]))
+      (define-key temp-global-map [tool-bar] (lookup-key old-global-map [tool-bar]))
+      (when (current-local-map)
+        (define-key overriding-terminal-local-map [menu-bar] (lookup-key (current-local-map) [menu-bar])))
+      (yaxception:$
+        (yaxception:try
+          (use-global-map temp-global-map)
+          (clear-this-command-keys)
+          (if (and pophint:use-pos-tip
+                   window-system
+                   (featurep 'pos-tip))
+              (progn (pophint--pos-tip-show prompt)
+                     (read-key-sequence nil))
+            (with-temp-message prompt
+              (read-key-sequence nil))))
+        (yaxception:finally
+          (use-global-map old-global-map)
+          (when timer (cancel-timer timer))
+          (pos-tip-hide))))))
+
 (defun* pophint--get-read-prompt (&key (count 0)
                                        (actdesc "")
                                        source
@@ -910,6 +972,58 @@ ALLWINDOW is t or nil. If non-nil, pop-up at all windows in frame."
          something)
         (t
          nil)))
+
+(defun pophint--pos-tip-show (string)
+  (copy-face 'pophint:pos-tip-face 'pos-tip-temp)
+  (when (eq (face-attribute 'pos-tip-temp :font) 'unspecified)
+    (set-face-font 'pos-tip-temp (frame-parameter nil 'font)))
+  (set-face-bold-p 'pos-tip-temp (face-bold-p 'pophint:pos-tip-face))
+  (multiple-value-bind (wnd rightpt bottompt) (pophint--get-pos-tip-location)
+    (let* ((max-width (pos-tip-x-display-width))
+           (max-height (pos-tip-x-display-height))
+           (tipsize (pophint--get-pos-tip-size string))
+           (tipsize (cond ((or (> (car tipsize) max-width)
+                               (> (cdr tipsize) max-height))
+                           (setq string (pos-tip-truncate-string string max-width max-height))
+                           (pophint--get-pos-tip-size string))
+                          (t
+                           tipsize)))
+           (tipwidth (car tipsize))
+           (tipheight (cdr tipsize))
+           (dx (- rightpt tipwidth 10))
+           (dy (- bottompt tipheight)))
+      (pos-tip-show-no-propertize
+       string 'pos-tip-temp 1 wnd 300 tipwidth tipheight nil dx dy))))
+
+(defun pophint--get-pos-tip-size (string)
+  "Return (WIDTH . HEIGHT) of the tip of pos-tip.el generated from STRING."
+  (let* ((w-h (pos-tip-string-width-height string))
+         (width (pos-tip-tooltip-width (car w-h) (frame-char-width)))
+         (height (pos-tip-tooltip-height (cdr w-h) (frame-char-height))))
+    (cons width height)))
+
+(defun pophint--get-pos-tip-location ()
+  "Return (WND RIGHT BOTTOM) as the location to show the tip of pos-tip.el."
+  (let ((leftpt 0)
+        (toppt 0)
+        wnd rightpt bottompt)
+    (dolist (w (window-list))
+      (let* ((edges (when (not (minibufferp (window-buffer w)))
+                      (window-pixel-edges w)))
+             (currleftpt (or (nth 0 edges) -1))
+             (currtoppt (or (nth 1 edges) -1)))
+        (when (and (= currleftpt 0)
+                   (= currtoppt 0))
+          (setq wnd w))
+        (when (or (> currleftpt leftpt)
+                  (> currtoppt toppt)
+                  (not rightpt)
+                  (not bottompt))
+          (setq rightpt (nth 2 edges))
+          (setq bottompt (nth 3 edges))
+          (setq leftpt currleftpt)
+          (setq toppt currtoppt))))
+    (list wnd rightpt bottompt)))
 
 (defadvice keyboard-quit (before delete-pophint-last-hints activate)
   (pophint--delete-last-hints))

@@ -4,26 +4,26 @@
 (expectations
   (desc "event-loop nil")
   (expect (mock (pophint--deletes *))
-    (stub popup-menu-read-key-sequence => nil)
+    (stub pophint--menu-read-key-sequence => nil)
     (pophint--event-loop :hints (list (make-pophint:hint :value "hoge" :startpt 1 :endpt 2)))))
 
 (expectations
   (desc "event-loop empty")
   (expect (mock (pophint--deletes *))
-    (stub popup-menu-read-key-sequence => (kbd ""))
+    (stub pophint--menu-read-key-sequence => (kbd ""))
     (pophint--event-loop :hints (list (make-pophint:hint :value "hoge" :startpt 1 :endpt 2)))))
 
 (expectations
   (desc "event-loop quit")
   (expect (mock (keyboard-quit))
-    (stub popup-menu-read-key-sequence => (kbd "q"))
+    (stub pophint--menu-read-key-sequence => (kbd "q"))
     (stub lookup-key => 'keyboard-quit)
     (pophint--event-loop :hints (list (make-pophint:hint :value "hoge" :startpt 1 :endpt 2)))))
 
 (expectations
   (desc "event-loop ret")
   (expect nil
-    (stub popup-menu-read-key-sequence => (kbd "q"))
+    (stub pophint--menu-read-key-sequence => (kbd "q"))
     (stub lookup-key => 'newline)
     (pophint--event-loop :hints (list (make-pophint:hint :value "hoge" :startpt 1 :endpt 2)
                                       (make-pophint:hint :value "fuga" :startpt 1 :endpt 2)))))
@@ -31,7 +31,7 @@
 (expectations
   (desc "event-loop ret has inputed")
   (expect "hoge"
-    (stub popup-menu-read-key-sequence => (kbd "q"))
+    (stub pophint--menu-read-key-sequence => (kbd "q"))
     (stub lookup-key => 'newline)
     (let* ((ret (pophint--event-loop :hints (list (make-pophint:hint :value "hoge" :startpt 1 :endpt 2)
                                                   (make-pophint:hint :value "fuga" :startpt 1 :endpt 2))
@@ -49,7 +49,7 @@
                             :not-highlight 'hogehigh
                             :window 'hogewnd
                             :not-switch-window 'hogeswwnd))
-    (stub popup-menu-read-key-sequence => (kbd "q"))
+    (stub pophint--menu-read-key-sequence => (kbd "q"))
     (stub lookup-key => 'delete-backward-char)
     (pophint--event-loop :hints (list (make-pophint:hint :value "hoge" :startpt 1 :endpt 2))
                          :source '((regexp . "hoge"))
@@ -71,7 +71,7 @@
                             :not-highlight 'hogehigh
                             :window 'hogewnd
                             :not-switch-window 'hogeswwnd))
-    (stub popup-menu-read-key-sequence => (kbd "q"))
+    (stub pophint--menu-read-key-sequence => (kbd "q"))
     (stub lookup-key => 'delete-backward-char)
     (pophint--event-loop :hints (list (make-pophint:hint :value "hoge" :startpt 1 :endpt 2))
                          :source '((regexp . "hoge"))
@@ -94,7 +94,7 @@
                             :not-highlight 'hogehigh
                             :window 'hogewnd
                             :not-switch-window 'hogeswwnd))
-    (stub popup-menu-read-key-sequence => (kbd "q"))
+    (stub pophint--menu-read-key-sequence => (kbd "q"))
     (stub lookup-key => 'backward-delete-char-untabify)
     (pophint--event-loop :hints (list (make-pophint:hint :value "hoge" :startpt 1 :endpt 2))
                          :source '((regexp . "hoge"))
@@ -115,7 +115,7 @@
                             :not-highlight 'hogehigh
                             :window 'hogewnd
                             :not-switch-window 'hogeswwnd))
-    (stub popup-menu-read-key-sequence => (kbd "d"))
+    (stub pophint--menu-read-key-sequence => (kbd "d"))
     (setq pophint--current-direction 'around)
     (pophint--event-loop :hints (list (make-pophint:hint :value "hoge" :startpt 1 :endpt 2))
                          :source '((regexp . "hoge"))
@@ -130,7 +130,7 @@
 (expectations
   (desc "event-loop switch direction around")
   (expect 'forward
-    (stub popup-menu-read-key-sequence => (kbd "d"))
+    (stub pophint--menu-read-key-sequence => (kbd "d"))
     (stub pophint:do => t)
     (setq pophint--current-direction 'around)
     (pophint--event-loop :hints (list (make-pophint:hint :value "hoge" :startpt 1 :endpt 2)))
@@ -139,7 +139,7 @@
 (expectations
   (desc "event-loop switch direction forward")
   (expect 'backward
-    (stub popup-menu-read-key-sequence => (kbd "d"))
+    (stub pophint--menu-read-key-sequence => (kbd "d"))
     (stub pophint:do => t)
     (setq pophint--current-direction 'forward)
     (pophint--event-loop :hints (list (make-pophint:hint :value "hoge" :startpt 1 :endpt 2)))
@@ -148,7 +148,7 @@
 (expectations
   (desc "event-loop switch direction backward")
   (expect 'around
-    (stub popup-menu-read-key-sequence => (kbd "d"))
+    (stub pophint--menu-read-key-sequence => (kbd "d"))
     (stub pophint:do => t)
     (setq pophint--current-direction 'backward)
     (pophint--event-loop :hints (list (make-pophint:hint :value "hoge" :startpt 1 :endpt 2)))
@@ -164,7 +164,7 @@
                             :direction nil
                             :window 'hogewnd
                             :not-switch-window 'hogeswwnd))
-    (stub popup-menu-read-key-sequence => (kbd "s"))
+    (stub pophint--menu-read-key-sequence => (kbd "s"))
     (pophint--event-loop :source '((regexp . "hoge"))
                          :sources '(((regexp . "fuga")) ((regexp . "bar")))
                          :action '(lambda (hint) (message "hoge"))
@@ -184,7 +184,7 @@
                             :direction nil
                             :window 'hogewnd
                             :not-switch-window 'hogeswwnd))
-    (stub popup-menu-read-key-sequence => (kbd "s"))
+    (stub pophint--menu-read-key-sequence => (kbd "s"))
     (pophint--event-loop :source '((regexp . "fuga"))
                          :sources '(((regexp . "fuga")) ((regexp . "bar")))
                          :action '(lambda (hint) (message "hoge"))
@@ -204,7 +204,7 @@
                             :direction 'hogedirect
                             :window 'hogewnd
                             :not-switch-window 'hogeswwnd))
-    (stub popup-menu-read-key-sequence => (kbd "s"))
+    (stub pophint--menu-read-key-sequence => (kbd "s"))
     (pophint--event-loop :source '((regexp . "fuga"))
                          :sources '(((regexp . "fuga")) ((regexp . "bar")))
                          :action '(lambda (hint) (message "hoge"))
@@ -224,7 +224,7 @@
                             :not-highlight 'hogehigh
                             :direction nil
                             :window *))
-    (stub popup-menu-read-key-sequence => (kbd "w"))
+    (stub pophint--menu-read-key-sequence => (kbd "w"))
     (stub pophint--get-available-sources => '(((regexp . "HOGEGE")) ((regexp . "FUGAGA"))))
     (save-window-excursion
       (delete-other-windows)
@@ -245,7 +245,7 @@
                             :not-highlight 'hogehigh
                             :direction nil
                             :window *))
-    (stub popup-menu-read-key-sequence => (kbd "w"))
+    (stub pophint--menu-read-key-sequence => (kbd "w"))
     (stub pophint--get-available-sources => '(((regexp . "HOGEGE")) ((regexp . "FUGAGA"))))
     (save-window-excursion
       (delete-other-windows)
@@ -266,7 +266,7 @@
                             :not-highlight 'hogehigh
                             :direction 'hogedirect
                             :window *))
-    (stub popup-menu-read-key-sequence => (kbd "w"))
+    (stub pophint--menu-read-key-sequence => (kbd "w"))
     (stub pophint--get-available-sources => '(((regexp . "HOGEGE")) ((regexp . "FUGAGA"))))
     (save-window-excursion
       (delete-other-windows)
@@ -282,7 +282,7 @@
 (expectations
   (desc "event-loop some command")
   (expect (mock (call-interactively 'forward-char))
-    (stub popup-menu-read-key-sequence => (kbd "q"))
+    (stub pophint--menu-read-key-sequence => (kbd "q"))
     (stub lookup-key => 'forward-char)
     (pophint--event-loop :hints (list (make-pophint:hint :value "hoge" :startpt 1 :endpt 2)))))
 

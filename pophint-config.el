@@ -5,7 +5,7 @@
 ;; Author: Hiroaki Otsu <ootsuhiroaki@gmail.com>
 ;; Keywords: popup
 ;; URL: https://github.com/aki2o/emacs-pophint
-;; Version: 0.6.0
+;; Version: 0.7.0
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -288,6 +288,7 @@ It's a buffer local variable and list like `pophint-config:quote-chars'."
   (pophint--trace "start do when set-mark")
   (pophint:do :not-highlight t
               :not-switch-window t
+              :use-pos-tip nil
               :source '((shown . "Region")
                         (method . pophint-config:collect-word-methods)
                         (action . (lambda (hint)
@@ -300,6 +301,7 @@ It's a buffer local variable and list like `pophint-config:quote-chars'."
   (pophint--trace "start do when cua-set-mark")
   (pophint:do :not-highlight t
               :not-switch-window t
+              :use-pos-tip nil
               :source '((shown . "Region")
                         (regexp . "[^a-zA-Z0-9]+")
                         (action . (lambda (hint)
@@ -422,6 +424,7 @@ It's a buffer local variable and list like `pophint-config:quote-chars'."
       (pophint:do :not-highlight t
                   :direction 'around
                   :allwindow t
+                  :use-pos-tip t
                   :source '((shown . "Wnd")
                             (requires . 0)
                             (method . (lambda ()
