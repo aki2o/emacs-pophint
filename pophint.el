@@ -871,7 +871,9 @@ USE-POS-TIP is t or nil. If omitted, inherit `pophint:use-pos-tip'."
         (yaxception:finally
           (use-global-map old-global-map)
           (when timer (cancel-timer timer))
-          (pos-tip-hide))))))
+          (when (and pophint:use-pos-tip
+                     (featurep 'pos-tip))
+            (pos-tip-hide)))))))
 
 (defun* pophint--get-read-prompt (&key (count 0)
                                        (actdesc "")
