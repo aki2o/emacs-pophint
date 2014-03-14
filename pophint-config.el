@@ -5,7 +5,7 @@
 ;; Author: Hiroaki Otsu <ootsuhiroaki@gmail.com>
 ;; Keywords: popup
 ;; URL: https://github.com/aki2o/emacs-pophint
-;; Version: 0.7.0
+;; Version: 0.8.0
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -63,6 +63,9 @@
 (require 'regexp-opt)
 (require 'ffap nil t)
 (require 'w3m-search nil t)
+;; (require 'anything-c-moccur nil t)
+;; (require 'helm-c-moccur nil t)
+(require 'direx nil t)
 
 
 ;;;;;;;;;;;;;;;;;;;;;
@@ -188,7 +191,7 @@ It's a buffer local variable and list like `pophint-config:quote-chars'."
                                    for startpt = (or (when (and (> (point) (point-min))
                                                                 (string= (format "%c" (char-before)) word))
                                                        (forward-char -1)
-                                                       (+ (point) 2))
+                                                       (+ (point) 1))
                                                      (when (re-search-backward (format "[^\\]%s" word) nil t)
                                                        (+ (point) 2)))
                                    for value = (when (and startpt (< startpt endpt))
@@ -450,7 +453,36 @@ It's a buffer local variable and list like `pophint-config:quote-chars'."
 ;;;;;;;;;;;;;;;
 ;; For elisp
 
+(defvar pophint-config:regexp-sexp-start (rx-to-string `(and (or bos
+                                                                 (not (any "(")))
+                                                             (group "(" (not (any ") \t\r\n"))))))
+
+(pophint:defsource
+  :name "sexp"
+  :description "Sexp on emacs-lisp-mode."
+  :source '((shown . "Sexp")
+            (method . ((lambda ()
+                         (when (and (not (eq (pophint:get-current-direction) 'backward))
+                                    (re-search-forward pophint-config:regexp-sexp-start nil t))
+                           (save-excursion
+                             (let* ((startpt (match-beginning 1))
+                                    (endpt (ignore-errors (goto-char startpt) (forward-sexp) (point)))
+                                    (value (when endpt (buffer-substring-no-properties startpt endpt))))
+                               (when (and startpt endpt value)
+                                 (make-pophint:hint :startpt startpt :endpt endpt :value value))))))
+                       (lambda ()
+                         (when (and (not (eq (pophint:get-current-direction) 'forward))
+                                    (re-search-backward pophint-config:regexp-sexp-start nil t))
+                           (save-excursion
+                             (let* ((startpt (match-beginning 1))
+                                    (endpt (ignore-errors (goto-char startpt) (forward-sexp) (point)))
+                                    (value (when endpt (buffer-substring-no-properties startpt endpt))))
+                               (when (and startpt endpt value)
+                                 (make-pophint:hint :startpt startpt :endpt endpt :value value))))))))
+            (highlight . nil)))
+
 (defun pophint-config:elisp-setup ()
+  (add-to-list 'pophint:sources 'pophint:source-sexp)
   (setq pophint-config:exclude-quote-chars '("'" "`")))
 
 (add-hook 'emacs-lisp-mode-hook 'pophint-config:elisp-setup t)
@@ -720,12 +752,38 @@ It's a buffer local variable and list like `pophint-config:quote-chars'."
                    :description "Node in directory."
                    :source '((shown . "Node")
                              (regexp . "^ *[d-][r-][w-][x-].+ +\\([^ ]+\\)$")
-                             (requires . 1)))
+                             (requires . 1)
+                             (highlight . nil)))
 
 (defun pophint-config:dired-setup ()
   (add-to-list 'pophint:sources 'pophint:source-dired-node))
 
 (add-hook 'dired-mode-hook 'pophint-config:dired-setup t)
+
+;;;;;;;;;;;;;;;
+;; For direx
+
+(when (featurep 'direx)
+
+  (defvar pophint-config:regexp-direx-node (rx-to-string `(and bol (* space)
+                                                               (or ,direx:leaf-icon
+                                                                   ,direx:open-icon
+                                                                   ,direx:closed-icon)
+                                                               (group (+ not-newline))
+                                                               (* space) eol)))
+  (pophint:defsource :name "direx-node"
+                     :description "Node on DireX."
+                     :source `((shown . "Node")
+                               (regexp . ,pophint-config:regexp-direx-node)
+                               (requires . 1)
+                               (highlight . nil)))
+
+  (defun pophint-config:direx-setup ()
+    (add-to-list 'pophint:sources 'pophint:source-direx-node))
+
+  (add-hook 'direx:direx-mode-hook 'pophint-config:direx-setup t)
+
+  )
 
 
 (provide 'pophint-config)
