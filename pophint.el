@@ -5,7 +5,7 @@
 ;; Author: Hiroaki Otsu <ootsuhiroaki@gmail.com>
 ;; Keywords: popup
 ;; URL: https://github.com/aki2o/emacs-pophint
-;; Version: 0.6.0
+;; Version: 0.6.1
 ;; Package-Requires: ((popup "0.5.0") (log4e "0.2.0") (yaxception "0.1"))
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -184,7 +184,7 @@ If nil, it means limitless."
   :group 'pophint)
 
 (defface pophint:match-face
-  '((t (:background "cornflower blue" :foreground "white")))
+  '((t (:background "steel blue" :foreground "white")))
   "Face for matched hint text."
   :group 'pophint)
 
@@ -210,6 +210,7 @@ If nil, it means limitless."
 (defvar pophint--default-search-regexp
   "\\(?:[^a-zA-Z0-9]\\([a-zA-Z0-9][a-zA-Z0-9]\\)\\|[a-zA-Z0-9 ]\\([^a-zA-Z0-9 ][^a-zA-Z0-9 ]\\)\\|\\([^ \t\n]\\)\\s-*\n\\)")
 (defvar pophint--current-direction 'around)
+(defvar pophint--current-highlight nil)
 (defvar pophint--default-source '((shown . "Default")
                                   (regexp . pophint--default-search-regexp)
                                   (requires . 1)
@@ -469,6 +470,7 @@ USE-POS-TIP is t or nil. If omitted, inherit `pophint:use-pos-tip'."
       (pophint--delete-last-hints)
       (when (not pophint:switch-direction-p)
         (setq pophint--current-direction 'around))
+      (setq pophint--current-highlight (not not-highlight))
       (let* ((sources (pophint--expand-sources sources))
              (source (or (pophint--expand-source source)
                          (when (> (length sources) 0) (nth 0 sources))
@@ -728,7 +730,7 @@ USE-POS-TIP is t or nil. If omitted, inherit `pophint:use-pos-tip'."
                              :action action
                              :action-name action-name
                              :direction (when not-switch-direction direction)
-                             :not-highlight not-highlight
+                             :not-highlight (not pophint--current-highlight)
                              :window window
                              :not-switch-window not-switch-window
                              :allwindow allwindow)
@@ -770,7 +772,7 @@ USE-POS-TIP is t or nil. If omitted, inherit `pophint:use-pos-tip'."
                                     :sources sources
                                     :action action
                                     :action-name action-name
-                                    :not-highlight not-highlight
+                                    :not-highlight (not pophint--current-highlight)
                                     :window window
                                     :not-switch-window not-switch-window
                                     :allwindow allwindow)
@@ -788,7 +790,7 @@ USE-POS-TIP is t or nil. If omitted, inherit `pophint:use-pos-tip'."
                                     :sources sources
                                     :action action
                                     :action-name action-name
-                                    :not-highlight not-highlight
+                                    :not-highlight (not pophint--current-highlight)
                                     :direction (when not-switch-direction direction)
                                     :window window
                                     :not-switch-window not-switch-window
@@ -807,7 +809,7 @@ USE-POS-TIP is t or nil. If omitted, inherit `pophint:use-pos-tip'."
                                       :sources (when (not not-switch-source) nsources)
                                       :action action
                                       :action-name action-name
-                                      :not-highlight not-highlight
+                                      :not-highlight (not pophint--current-highlight)
                                       :direction (when not-switch-direction direction)
                                       :window nwindow))
                         nil)
@@ -1017,13 +1019,13 @@ USE-POS-TIP is t or nil. If omitted, inherit `pophint:use-pos-tip'."
         (when (and (= currleftpt 0)
                    (= currtoppt 0))
           (setq wnd w))
-        (when (or (> currleftpt leftpt)
-                  (> currtoppt toppt)
-                  (not rightpt)
-                  (not bottompt))
+        (when (or (not rightpt)
+                  (> currleftpt leftpt))
           (setq rightpt (nth 2 edges))
+          (setq leftpt currleftpt))
+        (when (or (not bottompt)
+                  (> currtoppt toppt))
           (setq bottompt (nth 3 edges))
-          (setq leftpt currleftpt)
           (setq toppt currtoppt))))
     (list wnd rightpt bottompt)))
 
