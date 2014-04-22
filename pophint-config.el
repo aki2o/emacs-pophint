@@ -5,7 +5,7 @@
 ;; Author: Hiroaki Otsu <ootsuhiroaki@gmail.com>
 ;; Keywords: popup
 ;; URL: https://github.com/aki2o/emacs-pophint
-;; Version: 0.8.0
+;; Version: 0.8.1
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -722,19 +722,19 @@ It's a buffer local variable and list like `pophint-config:quote-chars'."
   :source '((shown . "Link")
             (method . ((lambda ()
                          (when (and (not (eq (pophint:get-current-direction) 'backward))
-                                    (shr-next-link))
+                                    (not (string= (shr-next-link) "No next link")))
                            (let* ((url (get-text-property (point) 'shr-url)))
                              (pophint--trace "(eww)found anchor. url:[%s] " url)
                              (make-pophint:hint :startpt (point)
-                                                :endpt (point)
+                                                :endpt (text-property-any (point) (point-max)  'help-echo nil)
                                                 :value url))))
                        (lambda ()
                          (when (and (not (eq (pophint:get-current-direction) 'forward))
-                                    (shr-previous-link))
+                                    (not (string= (shr-previous-link) "No previous link")))
                            (let* ((url (get-text-property (point) 'shr-url)))
-                             (pophint--trace "found anchor. url:[%s]" url)
+                             (pophint--trace "(eww)found anchor. url:[%s]" url)
                              (make-pophint:hint :startpt (point)
-                                                :endpt (point)
+                                                :endpt (text-property-any (point) (point-max)  'help-echo nil)
                                                 :value url))))))
             (action . (lambda (hint)
                         (goto-char (pophint:hint-startpt hint))
