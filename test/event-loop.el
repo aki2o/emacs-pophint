@@ -51,6 +51,7 @@
                             :not-switch-window 'hogeswwnd))
     (stub pophint--menu-read-key-sequence => (kbd "q"))
     (stub lookup-key => 'delete-backward-char)
+    (setq pophint--current-highlight t)
     (pophint--event-loop :hints (list (make-pophint:hint :value "hoge" :startpt 1 :endpt 2))
                          :source '((regexp . "hoge"))
                          :sources '(((regexp . "fuga")) ((regexp . "bar")))
