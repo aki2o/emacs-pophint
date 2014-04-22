@@ -17,7 +17,7 @@ test:
 	outfile=/tmp/.elisp-test-result ; \
 	for f in $$(find test -type f -name "*.el"); do \
 	    test -f $$outfile && rm -f $$outfile ; \
-		${CASK} exec ${EMACS} -Q --batch -L . -l $$f -f batch-expectations $$outfile || echo "This TEST is ERRORRRRRRR!!!!!" ; \
+		${CASK} exec ${EMACS} -Q --batch -L . -l $$f -f batch-expectations $$outfile || ret=1 ; \
 	    test -f $$outfile && cat $$outfile ; \
 	done ; \
 	test $$ret -eq 0
