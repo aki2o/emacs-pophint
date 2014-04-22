@@ -53,7 +53,7 @@ For detail, see pophint-config.el section below.
 
 If you execute the command that handle multiple source, the message is shown in minibuffer like the following.  
 
-![switch<sub>source</sub>](image/switch_source.png)
+![switch-source](image/switch_source.png)
 
 Then, you can switch a used source by pushing a "s" key.  
 And, you can customize the key binding.  
@@ -63,7 +63,7 @@ And, you can customize the key binding.
 If you execute the command that show the pop-up hint in the situation that a frame has some windows,  
 the message is shown in minibuffer like the following.  
 
-![switch<sub>window</sub>](image/switch_window.png)
+![switch-window](image/switch_window.png)
 
 Then, you can switch a target window by pushing a "w" key.  
 And, you can customize the key binding.  
@@ -103,6 +103,11 @@ Download pophint.el and put it on your load-path.
 -   popup.el &#x2026; bundled with ![auto-complete.el](https://github.com/auto-complete/auto-complete)
 -   ![log4e.el](https://github.com/aki2o/log4e)
 -   ![yaxception.el](https://github.com/aki2o/yaxception)
+
+# Configuration
+
+About Sample, see <https://github.com/aki2o/emacs-pophint/wiki/ConfigExample>.  
+For more information, see Configuration section in <https://github.com/aki2o/emacs-pophint/wiki>.  
 
 # Tested On
 
