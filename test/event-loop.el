@@ -46,7 +46,7 @@
                             :action '(lambda (hint) (message "hoge"))
                             :action-name "TestAct"
                             :direction nil
-                            :not-highlight 'hogehigh
+                            :not-highlight nil
                             :window 'hogewnd
                             :not-switch-window 'hogeswwnd))
     (stub pophint--menu-read-key-sequence => (kbd "q"))
@@ -68,7 +68,7 @@
                             :action '(lambda (hint) (message "hoge"))
                             :action-name "TestAct"
                             :direction 'hogedirect
-                            :not-highlight 'hogehigh
+                            :not-highlight nil
                             :window 'hogewnd
                             :not-switch-window 'hogeswwnd))
     (stub pophint--menu-read-key-sequence => (kbd "q"))
@@ -91,7 +91,7 @@
                             :action '(lambda (hint) (message "hoge"))
                             :action-name "TestAct"
                             :direction nil
-                            :not-highlight 'hogehigh
+                            :not-highlight nil
                             :window 'hogewnd
                             :not-switch-window 'hogeswwnd))
     (stub pophint--menu-read-key-sequence => (kbd "q"))
@@ -112,7 +112,7 @@
                             :sources '(((regexp . "fuga")) ((regexp . "bar")))
                             :action '(lambda (hint) (message "hoge"))
                             :action-name "TestAct"
-                            :not-highlight 'hogehigh
+                            :not-highlight nil
                             :window 'hogewnd
                             :not-switch-window 'hogeswwnd))
     (stub pophint--menu-read-key-sequence => (kbd "d"))
@@ -160,7 +160,7 @@
                             :sources '(((regexp . "fuga")) ((regexp . "bar")))
                             :action '(lambda (hint) (message "hoge"))
                             :action-name "TestAct"
-                            :not-highlight 'hogehigh
+                            :not-highlight nil
                             :direction nil
                             :window 'hogewnd
                             :not-switch-window 'hogeswwnd))
@@ -180,7 +180,7 @@
                             :sources '(((regexp . "fuga")) ((regexp . "bar")))
                             :action '(lambda (hint) (message "hoge"))
                             :action-name "TestAct"
-                            :not-highlight 'hogehigh
+                            :not-highlight nil
                             :direction nil
                             :window 'hogewnd
                             :not-switch-window 'hogeswwnd))
@@ -200,7 +200,7 @@
                             :sources '(((regexp . "fuga")) ((regexp . "bar")))
                             :action '(lambda (hint) (message "hoge"))
                             :action-name "TestAct"
-                            :not-highlight 'hogehigh
+                            :not-highlight nil
                             :direction 'hogedirect
                             :window 'hogewnd
                             :not-switch-window 'hogeswwnd))
@@ -221,7 +221,7 @@
                             :sources '(((regexp . "HOGEGE")) ((regexp . "FUGAGA")))
                             :action '(lambda (hint) (message "hoge"))
                             :action-name "TestAct"
-                            :not-highlight 'hogehigh
+                            :not-highlight nil
                             :direction nil
                             :window *))
     (stub pophint--menu-read-key-sequence => (kbd "w"))
@@ -242,7 +242,7 @@
                             :sources '(((regexp . "HOGEGE")) ((regexp . "FUGAGA")))
                             :action '(lambda (hint) (message "hoge"))
                             :action-name "TestAct"
-                            :not-highlight 'hogehigh
+                            :not-highlight nil
                             :direction nil
                             :window *))
     (stub pophint--menu-read-key-sequence => (kbd "w"))
@@ -263,7 +263,7 @@
                             :sources '(((regexp . "HOGEGE")) ((regexp . "FUGAGA")))
                             :action '(lambda (hint) (message "hoge"))
                             :action-name "TestAct"
-                            :not-highlight 'hogehigh
+                            :not-highlight nil
                             :direction 'hogedirect
                             :window *))
     (stub pophint--menu-read-key-sequence => (kbd "w"))
