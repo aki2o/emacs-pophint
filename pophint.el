@@ -5,7 +5,7 @@
 ;; Author: Hiroaki Otsu <ootsuhiroaki@gmail.com>
 ;; Keywords: popup
 ;; URL: https://github.com/aki2o/emacs-pophint
-;; Version: 0.6.1
+;; Version: 0.6.2
 ;; Package-Requires: ((popup "0.5.0") (log4e "0.2.0") (yaxception "0.1"))
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -475,6 +475,7 @@ USE-POS-TIP is t or nil. If omitted, inherit `pophint:use-pos-tip'."
              (source (or (pophint--expand-source source)
                          (when (> (length sources) 0) (nth 0 sources))
                          pophint--default-source))
+             (current-input-method nil)
              (currdirection (or direction
                                 pophint--current-direction))
              (not-switch-direction (or (when direction t)
