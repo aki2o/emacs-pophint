@@ -5,7 +5,6 @@
   (desc "do get-hint not argument")
   (expect (mock (pophint--get-hints :source '((shown . "Default") (regexp . pophint--default-search-regexp) (requires . 1) (highlight))
                                     :direction 'around
-                                    :not-highlight t
                                     :window nil
                                     :allwindow nil))
     (stub pophint--event-loop => nil)
@@ -15,7 +14,6 @@
   (desc "do get-hint has sources")
   (expect (mock (pophint--get-hints :source '((regexp . "hoge"))
                                     :direction 'around
-                                    :not-highlight nil
                                     :window nil
                                     :allwindow nil))
     (stub pophint--event-loop => nil)
@@ -26,7 +24,6 @@
   (desc "do get-hint has source")
   (expect (mock (pophint--get-hints :source '((regexp . "fuga"))
                                     :direction 'around
-                                    :not-highlight nil
                                     :window nil
                                     :allwindow nil))
     (stub pophint--event-loop => nil)
@@ -36,7 +33,6 @@
   (desc "do get-hint has sources/source")
   (expect (mock (pophint--get-hints :source '((regexp . "hoge"))
                                     :direction 'around
-                                    :not-highlight nil
                                     :window nil
                                     :allwindow nil))
     (stub pophint--event-loop => nil)
@@ -48,7 +44,6 @@
   (desc "do get-hint auto set around direction when not pophint:switch-direction-p")
   (expect (mock (pophint--get-hints :source '((regexp . "hoge"))
                                     :direction 'around
-                                    :not-highlight nil
                                     :window nil
                                     :allwindow nil))
     (stub pophint--event-loop => nil)
@@ -59,7 +54,6 @@
   (desc "do get-hint use current direction when pophint:switch-direction-p")
   (expect (mock (pophint--get-hints :source '((regexp . "hoge"))
                                     :direction 'hogedirection
-                                    :not-highlight nil
                                     :window nil
                                     :allwindow nil))
     (stub pophint--event-loop => nil)
@@ -70,7 +64,6 @@
   (desc "do get-hint has direction")
   (expect (mock (pophint--get-hints :source '((regexp . "hoge"))
                                     :direction 'hogedirection
-                                    :not-highlight nil
                                     :window nil
                                     :allwindow nil))
     (stub pophint--event-loop => nil)
@@ -82,7 +75,6 @@
   (desc "do get-hint has not-highlight")
   (expect (mock (pophint--get-hints :source '((regexp . "hoge"))
                                     :direction 'around
-                                    :not-highlight t
                                     :window nil
                                     :allwindow nil))
     (stub pophint--event-loop => nil)
@@ -93,7 +85,6 @@
   (desc "do get-hint has nil value of highlight option")
   (expect (mock (pophint--get-hints :source '((regexp . "hoge") (highlight))
                                     :direction 'around
-                                    :not-highlight t
                                     :window nil
                                     :allwindow nil))
     (stub pophint--event-loop => nil)
@@ -103,7 +94,6 @@
   (desc "do get-hint has t value of highlight option")
   (expect (mock (pophint--get-hints :source '((regexp . "hoge") (highlight . t))
                                     :direction 'around
-                                    :not-highlight nil
                                     :window nil
                                     :allwindow nil))
     (stub pophint--event-loop => nil)
@@ -113,7 +103,6 @@
   (desc "do get-hint has window")
   (expect (mock (pophint--get-hints :source '((regexp . "hoge"))
                                     :direction 'around
-                                    :not-highlight nil
                                     :window 'hogewnd
                                     :allwindow nil))
     (stub pophint--event-loop => nil)
@@ -124,7 +113,6 @@
   (desc "do get-hint active allwindow when pophint:do-allwindow-p and multi windows")
   (expect (mock (pophint--get-hints :source '((regexp . "hoge"))
                                     :direction 'around
-                                    :not-highlight nil
                                     :window nil
                                     :allwindow t))
     (stub pophint--event-loop => nil)
@@ -135,7 +123,6 @@
   (desc "do get-hint active allwindow when enable allwindow and multi windows")
   (expect (mock (pophint--get-hints :source '((regexp . "hoge"))
                                     :direction 'around
-                                    :not-highlight nil
                                     :window nil
                                     :allwindow t))
     (stub pophint--event-loop => nil)
@@ -146,7 +133,6 @@
   (desc "do get-hint active allwindow when allwindow option and multi windows")
   (expect (mock (pophint--get-hints :source '((regexp . "hoge"))
                                     :direction 'around
-                                    :not-highlight nil
                                     :window nil
                                     :allwindow t))
     (stub pophint--event-loop => nil)
@@ -157,7 +143,6 @@
   (desc "do get-hint deactive allwindow when disable allwindow")
   (expect (mock (pophint--get-hints :source '((regexp . "hoge"))
                                     :direction 'around
-                                    :not-highlight nil
                                     :window nil
                                     :allwindow nil))
     (stub pophint--event-loop => nil)
@@ -168,7 +153,6 @@
   (desc "do get-hint deactive allwindow when window option")
   (expect (mock (pophint--get-hints :source '((regexp . "hoge"))
                                     :direction 'around
-                                    :not-highlight nil
                                     :window 'hogewnd
                                     :allwindow nil))
     (stub pophint--event-loop => nil)
@@ -179,7 +163,6 @@
   (desc "do get-hint deactive allwindow when not-switch-window option")
   (expect (mock (pophint--get-hints :source '((regexp . "hoge"))
                                     :direction 'around
-                                    :not-highlight nil
                                     :window nil
                                     :allwindow nil))
     (stub pophint--event-loop => nil)
@@ -190,7 +173,6 @@
   (desc "do get-hint deactive allwindow when single window")
   (expect (mock (pophint--get-hints :source '((regexp . "hoge"))
                                     :direction 'around
-                                    :not-highlight nil
                                     :window nil
                                     :allwindow nil))
     (stub pophint--event-loop => nil)
@@ -215,6 +197,7 @@
                                      :window nil
                                      :allwindow nil))
     (stub pophint--get-hints => 'hogehints)
+    (stub pophint--show-tip => nil)
     (stub pophint--do-action => nil)
     (let ((pophint:switch-direction-p nil)
           (pophint:do-allwindow-p nil))
@@ -233,6 +216,7 @@
                                      :window 'hogewnd
                                      :allwindow nil))
     (stub pophint--get-hints => 'hogehints)
+    (stub pophint--show-tip => nil)
     (stub pophint--do-action => nil)
     (let ((pophint:switch-direction-p t)
           (pophint:do-allwindow-p nil))
@@ -257,6 +241,7 @@
                                      :window nil
                                      :allwindow nil))
     (stub pophint--get-hints => 'hogehints)
+    (stub pophint--show-tip => nil)
     (stub pophint--do-action => nil)
     (let ((pophint:switch-direction-p t)
           (pophint:do-allwindow-p nil))
@@ -267,22 +252,26 @@
   (desc "do do-action not argument")
   (expect (mock (pophint--do-action 'hogehint pophint--default-action))
     (stub pophint--get-hints => nil)
+    (stub pophint--show-tip => nil)
     (stub pophint--event-loop => 'hogehint)
     (pophint:do))
   (desc "do do-action not has action source")
   (expect (mock (pophint--do-action 'hogehint pophint--default-action))
     (stub pophint--get-hints => nil)
+    (stub pophint--show-tip => nil)
     (stub pophint--event-loop => 'hogehint)
     (pophint:do :source '((regexp . "hoge"))))
   (desc "do do-action has action source")
   (expect (mock (pophint--do-action 'hogehint '(lambda (hint) (message "hoge"))))
     (stub pophint--get-hints => nil)
+    (stub pophint--show-tip => nil)
     (stub pophint--event-loop => 'hogehint)
     (pophint:do :source '((regexp . "hoge")
                           (action . (lambda (hint) (message "hoge"))))))
   (desc "do do-action has action and has action source")
   (expect (mock (pophint--do-action 'hogehint '(lambda (hint) (message "fuga"))))
     (stub pophint--get-hints => nil)
+    (stub pophint--show-tip => nil)
     (stub pophint--event-loop => 'hogehint)
     (pophint:do :source '((regexp . "hoge")
                           (action . (lambda (hint) (message "hoge"))))

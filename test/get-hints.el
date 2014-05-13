@@ -132,15 +132,17 @@
            (tfile2 (tenv-get-tmp-file "pophint" "test2.txt" t t))
            (buff (find-file-noselect tfile))
            (buff2 (find-file-noselect tfile2))
-           (ret (save-window-excursion
-                  (switch-to-buffer-other-window buff2)
-                  (switch-to-buffer-other-window buff)
-                  (with-current-buffer buff
-                    (goto-char (point-min))
-                    (forward-line)
-                    (pophint--get-hints :source '((regexp . "a\\s-+\\([a-z]+\\)"))
-                                        :direction 'backward))))
-           (hint (pop ret)))
+           (hints (save-window-excursion
+                    (switch-to-buffer-other-window buff2)
+                    (switch-to-buffer-other-window buff)
+                    (with-current-buffer buff
+                      (goto-char (point-min))
+                      (forward-line)
+                      (let ((hints (pophint--get-hints :source '((regexp . "a\\s-+\\([a-z]+\\)"))
+                                                       :direction 'backward)))
+                        (pophint--show-tip hints nil)
+                        hints))))
+           (hint (pop hints)))
       (and (pophint:hint-p hint)
            (popup-p (pophint:hint-popup hint))))))
 

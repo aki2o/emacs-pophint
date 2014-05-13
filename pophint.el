@@ -5,7 +5,7 @@
 ;; Author: Hiroaki Otsu <ootsuhiroaki@gmail.com>
 ;; Keywords: popup
 ;; URL: https://github.com/aki2o/emacs-pophint
-;; Version: 0.6.2
+;; Version: 0.7.0
 ;; Package-Requires: ((popup "0.5.0") (log4e "0.2.0") (yaxception "0.1"))
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -78,6 +78,8 @@
 ;;; API:
 ;; 
 ;; [EVAL] (autodoc-document-lisp-buffer :type 'macro :prefix "pophint:" :docstring t)
+;; `pophint:defsituation'
+;; Define the command to pop-up hint-tip in SITUATION.
 ;; `pophint:defsource'
 ;; Define the variable and command to pop-up hint-tip by using given source.
 ;; `pophint:defaction'
@@ -98,6 +100,8 @@
 ;; Toggle the status of `pophint:use-pos-tip'.
 ;; `pophint:redo'
 ;; Redo last pop-up hint-tip using any sources.
+;; `pophint:do-situationally'
+;; Do pop-up hint-tip for SITUATION.
 ;; `pophint:do-interactively'
 ;; Do pop-up hint-tip asking about what to do after select hint-tip.
 ;; `pophint:do-flexibly'
@@ -202,6 +206,9 @@ If nil, it means limitless."
 (defvar pophint:global-sources nil
   "Global sources for pop-up hint tip flexibly")
 
+(defvar pophint:dedicated-sources nil
+  "Dedicated sources for pop-up hint tip in particular situation.")
+
 
 (defstruct pophint:hint window popup overlay (startpt 0) (endpt 0) (value ""))
 (defstruct pophint:action name action)
@@ -243,6 +250,26 @@ If nil, it means limitless."
 (pophint--log-set-level 'trace)
 
 
+(defmacro pophint:defsituation (situation)
+  "Define the command to pop-up hint-tip in SITUATION.
+
+Arguments:
+SITUATION is symbol. It's used for finding the sources that is dedicated
+for SITUATION from `pophint:dedicated-sources'.
+
+Example:
+ (pophint:defsituation e2wm)
+"
+  (declare (indent 0))
+  (let* ((symnm (downcase (replace-regexp-in-string " +" "-" (symbol-name situation))))
+         (fnc-sym (intern (format "pophint:do-situationally-%s" symnm)))
+         (fnc-doc (format "Do `pophint:do-situationally' for '%s'." symnm)))
+    `(progn
+       (defun ,fnc-sym ()
+         ,fnc-doc
+         (interactive)
+         (pophint:do-situationally ',situation)))))
+
 (defmacro* pophint:defsource (&key name description source)
   "Define the variable and command to pop-up hint-tip by using given source.
 
@@ -251,37 +278,45 @@ NAME is string. It's used for define variable and command as part of the name.
 DESCRIPTION is string. It's used for define variable as part of the docstring.
 SOURCE is alist. The member is the following.
 
- - shown     ... It's string.
-                 It's used for message in minibuffer when get user input.
-                 If nil, its value is NAME.
+ - shown         ... It's string.
+                     It's used for message in minibuffer when get user input.
+                     If nil, its value is NAME.
+                 
+ - regexp        ... It's string.
+                     It's used for finding next point of pop-up.
+                     If nil, its value is `pophint--default-search-regexp'.
+                     If exist group of matches, next point is beginning of group 1, else it's beginning of group 0.
+                 
+ - requires      ... It's integer.
+                     It's minimum length of matched text as next point.
+                     If nil, its value is 0.
+                 
+ - limit         ... It's integer.
+                     If non-nil, replace `pophint:popup-max-tips' with it while using the source.
+                 
+ - action        ... It's function.
+                     It's called when finish hint-tip selection.
+                     If nil, its value is `pophint--default-action'.
+                     It receive the object of `pophint:hint' selected by user.
+                 
+ - method        ... It's function or list of function.
+                     It's called when find next point of pop-up.
+                     If nil, its value is `re-search-forward' or `re-search-backward', and regexp is used.
+                 
+ - init          ... It's function.
+                     It's called before start to find pop-up point at each of window/direction.
+                     If the method is multiple, It's called before start each method.
+                 
+ - highlight     ... It's t or nil. Default is t.
+                     If nil, don't highlight matched text when pop-up hint.
+                 
+ - dedicated     ... It's symbol or list of symbol means the particular situation that SOURCE is dedicated for.
+                     If non-nil, added to `pophint:dedicated-sources' which has relation with `pophint:do-situationally'.
 
- - regexp    ... It's string.
-                 It's used for finding next point of pop-up.
-                 If nil, its value is `pophint--default-search-regexp'.
-                 If exist group of matches, next point is beginning of group 1, else it's beginning of group 0.
-
- - requires  ... It's integer.
-                 It's minimum length of matched text as next point.
-                 If nil, its value is 0.
-
- - limit     ... It's integer.
-                 If non-nil, replace `pophint:popup-max-tips' with it while using the source.
-
- - action    ... It's function.
-                 It's called when finish hint-tip selection.
-                 If nil, its value is `pophint--default-action'.
-                 It receive the object of `pophint:hint' selected by user.
-            
- - method    ... It's function or list of function.
-                 It's called when find next point of pop-up.
-                 If nil, its value is `re-search-forward' or `re-search-backward', and regexp is used.
-
- - init      ... It's function.
-                 It's called before start to find pop-up point at each of window/direction.
-                 If the method is multiple, It's called before start each method.
-
- - highlight ... It's t or nil. Default is t.
-                 If nil, don't highlight matched text when pop-up hint.
+ - activebufferp ... It's function called for checking if SOURCE is activated in the buffer.
+                     It's no need if 'dedicated' option is not used.
+                     This function receives a buffer object and
+                     needs to return non-nil if the buffer is the target of itself.
 
 Example:
  (pophint:defsource :name \"sexp-head\"
@@ -291,16 +326,24 @@ Example:
                               (requires . 1)))
 "
   (declare (indent 0))
-  `(progn
-     (defvar ,(intern (format "pophint:source-%s" (downcase (replace-regexp-in-string " +" "-" name)))) nil
-       ,(format "Source for pop-up hint-tip of '%s'.\n\nDescription:\n%s" name (or description "Not documented.")))
-     (setq ,(intern (format "pophint:source-%s" (downcase (replace-regexp-in-string " +" "-" name)))) ,source)
-     (when (not (assoc-default 'shown ,(intern (format "pophint:source-%s" (downcase (replace-regexp-in-string " +" "-" name))))))
-       (add-to-list ',(intern (format "pophint:source-%s" (downcase (replace-regexp-in-string " +" "-" name)))) '(shown . ,name)))
-     (defun ,(intern (format "pophint:do-%s" (downcase (replace-regexp-in-string " +" "-" name)))) ()
-       ,(format "Do pop-up hint-tip using `pophint:source-%s'." (downcase (replace-regexp-in-string " +" "-" name)))
-       (interactive)
-       (pophint:do :source ',(intern (format "pophint:source-%s" (downcase (replace-regexp-in-string " +" "-" name))))))))
+  (let* ((symnm (downcase (replace-regexp-in-string " +" "-" name)))
+         (var-sym (intern (format "pophint:source-%s" symnm)))
+         (var-doc (format "Source for pop-up hint-tip of '%s'.\n\nDescription:\n%s"
+                          name (or description "Not documented.")))
+         (fnc-sym (intern (format "pophint:do-%s" symnm)))
+         (fnc-doc (format "Do pop-up hint-tip using `%s'." var-sym)))
+    `(progn
+       (defvar ,var-sym nil
+         ,var-doc)
+       (setq ,var-sym ,source)
+       (when (not (assoc-default 'shown ,var-sym))
+         (add-to-list ',var-sym '(shown . ,name)))
+       (if (assoc-default 'dedicated ,var-sym)
+           (add-to-list 'pophint:dedicated-sources ',var-sym t)
+         (defun ,fnc-sym ()
+           ,fnc-doc
+           (interactive)
+           (pophint:do :source ',var-sym))))))
 
 (defmacro* pophint:defaction (&key key name description action)
   "Define the action that called when finish hint-tip selection and the command using it.
@@ -375,6 +418,69 @@ It return 'around or 'forward or 'backward."
               :action pophint--last-action
               :action-name pophint--last-action-name
               :window pophint--last-window))
+
+;;;###autoload
+(defun pophint:do-situationally (situation)
+  "Do pop-up hint-tip for SITUATION.
+
+SITUATION is symbol used for finding active sources from `pophint:dedicated-sources'."
+  (interactive
+   (list (intern
+          (completing-read "Select situation: "
+                           (loop with ret = nil
+                                 for src in (pophint--expand-sources pophint:dedicated-sources)
+                                 for dedicated = (assoc-default 'dedicated src)
+                                 if dedicated
+                                 do (cond ((symbolp dedicated) (pushnew dedicated ret))
+                                          ((listp dedicated)   (loop for e in dedicated do (pushnew e ret))))
+                                 finally return ret)
+                           nil t nil '()))))
+  (yaxception:$
+    (yaxception:try
+      (pophint--trace "start do situationally. situation[%s]" situation)
+      (pophint--delete-last-hints)
+      (let* ((sources (loop for src in (pophint--expand-sources pophint:dedicated-sources)
+                            for dedicated = (assoc-default 'dedicated src)
+                            if (or (and dedicated
+                                        (symbolp dedicated)
+                                        (eq dedicated situation))
+                                   (and dedicated
+                                        (listp dedicated)
+                                        (memq situation dedicated)))
+                            collect src))
+             (current-input-method nil)
+             (not-highlight (loop for src in sources
+                                  always (and (assq 'highlight src)
+                                              (not (assoc-default 'highlight src)))))
+             (hints (loop for wnd in (window-list nil nil)
+                          append (with-selected-window wnd
+                                    (loop for src in sources
+                                          for chker = (assoc-default 'activebufferp src)
+                                          if (and (functionp chker)
+                                                  (funcall chker (window-buffer)))
+                                          return (pophint--get-hints :source src
+                                                                     :direction 'around
+                                                                     :window wnd)))))
+             (hint (progn (pophint--show-tip hints not-highlight)
+                          (pophint--event-loop :hints hints
+                                               :action-name (upcase (symbol-name situation))
+                                               :direction 'around
+                                               :not-switch-direction t
+                                               :not-switch-window t)))
+             (action (or (when hint
+                           (with-selected-window (pophint:hint-window hint)
+                             (loop for src in sources
+                                   for chker = (assoc-default 'activebufferp src)
+                                   if (and (functionp chker)
+                                           (funcall chker (window-buffer)))
+                                   return (assoc-default 'action src))))
+                         pophint--default-action)))
+        (pophint--do-action hint action)))
+    (yaxception:catch 'error e
+      (message "[PopHint] Failed pophint:do situationally : %s" (yaxception:get-text e))
+      (pophint--fatal "failed do situationally : %s\n%s"
+                      (yaxception:get-text e) (yaxception:get-stack-trace-string e))
+      (pophint--log-open-log-if-debug))))
 
 ;;;###autoload
 (defun pophint:do-interactively ()
@@ -492,20 +598,20 @@ USE-POS-TIP is t or nil. If omitted, inherit `pophint:use-pos-tip'."
              (pophint:use-pos-tip (if (eq use-pos-tip 'global) pophint:use-pos-tip use-pos-tip))
              (hints (pophint--get-hints :source source
                                         :direction currdirection
-                                        :not-highlight not-highlight
                                         :window window
                                         :allwindow allwindow))
-             (hint (pophint--event-loop :hints hints
-                                        :source source
-                                        :sources sources
-                                        :action action
-                                        :action-name (or action-name "Go/SrcAct")
-                                        :not-highlight not-highlight
-                                        :direction currdirection
-                                        :not-switch-direction not-switch-direction
-                                        :not-switch-window not-switch-window
-                                        :window window
-                                        :allwindow allwindow))
+             (hint (progn (pophint--show-tip hints not-highlight)
+                          (pophint--event-loop :hints hints
+                                               :source source
+                                               :sources sources
+                                               :action action
+                                               :action-name (or action-name "Go/SrcAct")
+                                               :not-highlight not-highlight
+                                               :direction currdirection
+                                               :not-switch-direction not-switch-direction
+                                               :not-switch-window not-switch-window
+                                               :window window
+                                               :allwindow allwindow)))
              (action (or action
                          (assoc-default 'action source)
                          pophint--default-action)))
@@ -588,34 +694,41 @@ USE-POS-TIP is t or nil. If omitted, inherit `pophint:use-pos-tip'."
                (decf tip-count)))
         finally return (loop for k being the hash-keys in tiptexth collect k)))
       
-(defsubst pophint--show-tip (hints not-highlight)
+(defun pophint--show-tip (hints not-highlight)
   (pophint--trace "start show hint tip. count:[%s] not-highlight:[%s]" (length hints) not-highlight)
-  (loop with tiptexts = (pophint--get-popup-text-list (length hints))
+  (loop with orgwnd = (selected-window)
+        with wnd = orgwnd
+        with tiptexts = (pophint--get-popup-text-list (length hints))
         for hint in hints
         for tiptext = (or (pop tiptexts) "")
-        if (not (string= tiptext ""))
-        do (with-selected-window (pophint:hint-window hint)
-             (let ((tip (popup-create (pophint:hint-startpt hint)
-                                      (string-width tiptext)
-                                      1
-                                      :around nil
-                                      :margin-left 0
-                                      :margin-right 0
-                                      :face 'pophint:tip-face))
-                   (ov (when (not not-highlight)
-                         (make-overlay (pophint:hint-startpt hint)
-                                       (pophint:hint-endpt hint)))))
-               (when ov
-                 (overlay-put ov 'window (selected-window))
-                 (overlay-put ov 'face 'pophint:match-face)
-                 (setf (pophint:hint-overlay hint) ov))
-               (setf (pophint:hint-popup hint) tip)
-               (popup-set-list tip (list tiptext))
-               (popup-draw tip)))))
+        for nextwnd = (pophint:hint-window hint)
+        if (string= tiptext "")
+        return nil
+        if (not (eq wnd nextwnd))
+        do (progn (select-window nextwnd t)
+                  (setq wnd (selected-window)))
+        do (let ((tip (popup-create (pophint:hint-startpt hint)
+                                    (string-width tiptext)
+                                    1
+                                    :around nil
+                                    :margin-left 0
+                                    :margin-right 0
+                                    :face 'pophint:tip-face))
+                 (ov (when (not not-highlight)
+                       (make-overlay (pophint:hint-startpt hint)
+                                     (pophint:hint-endpt hint)))))
+             (when ov
+               (overlay-put ov 'window (selected-window))
+               (overlay-put ov 'face 'pophint:match-face)
+               (setf (pophint:hint-overlay hint) ov))
+             (setf (pophint:hint-popup hint) tip)
+             (popup-set-list tip (list tiptext))
+             (popup-draw tip))
+        finally do (select-window orgwnd t)))
 
-(defun* pophint--get-hints (&key source direction not-highlight window allwindow)
-  (pophint--debug "start get hints direction:[%s] not-highlight:[%s] window:[%s] allwindow:[%s]\nsource:%s"
-                  direction not-highlight window allwindow source)
+(defun* pophint--get-hints (&key source direction window allwindow)
+  (pophint--debug "start get hints direction:[%s] window:[%s] allwindow:[%s]\nsource:%s"
+                  direction window allwindow source)
   (let ((hints))
     (yaxception:$
       (yaxception:try
@@ -661,8 +774,7 @@ USE-POS-TIP is t or nil. If omitted, inherit `pophint:use-pos-tip'."
                           do (progn (pophint--trace "found hint. text:[%s] startpt:[%s] endpt:[%s]"
                                                     (pophint:hint-value hint) (pophint:hint-startpt hint) (pophint:hint-endpt hint))
                                     (incf cnt)
-                                    (setq hints (append hints (list hint))))))))))
-          (pophint--show-tip hints not-highlight))
+                                    (setq hints (append hints (list hint)))))))))))
         hints)
       (yaxception:catch 'error e
         (pophint--deletes hints)

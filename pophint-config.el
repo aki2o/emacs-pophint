@@ -5,7 +5,7 @@
 ;; Author: Hiroaki Otsu <ootsuhiroaki@gmail.com>
 ;; Keywords: popup
 ;; URL: https://github.com/aki2o/emacs-pophint
-;; Version: 0.8.1
+;; Version: 0.9.0
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -713,6 +713,7 @@ It's a buffer local variable and list like `pophint-config:quote-chars'."
 
 (add-hook 'w3m-mode-hook 'pophint-config:w3m-setup t)
 
+
 ;;;;;;;;;;;;;
 ;; For eww
 
@@ -745,6 +746,7 @@ It's a buffer local variable and list like `pophint-config:quote-chars'."
 
 (add-hook 'eww-mode-hook 'pophint-config:eww-setup t)
 
+
 ;;;;;;;;;;;;;;;
 ;; For dired
 
@@ -759,6 +761,7 @@ It's a buffer local variable and list like `pophint-config:quote-chars'."
   (add-to-list 'pophint:sources 'pophint:source-dired-node))
 
 (add-hook 'dired-mode-hook 'pophint-config:dired-setup t)
+
 
 ;;;;;;;;;;;;;;;
 ;; For direx
@@ -776,7 +779,11 @@ It's a buffer local variable and list like `pophint-config:quote-chars'."
                      :source `((shown . "Node")
                                (regexp . ,pophint-config:regexp-direx-node)
                                (requires . 1)
-                               (highlight . nil)))
+                               (highlight . nil)
+                               (dedicated . (e2wm))
+                               (activebufferp . (lambda (buff)
+                                                  (with-current-buffer buff
+                                                    (eq major-mode 'direx:direx-mode))))))
 
   (defun pophint-config:direx-setup ()
     (add-to-list 'pophint:sources 'pophint:source-direx-node))
@@ -784,6 +791,72 @@ It's a buffer local variable and list like `pophint-config:quote-chars'."
   (add-hook 'direx:direx-mode-hook 'pophint-config:direx-setup t)
 
   )
+
+
+;;;;;;;;;;;;;;
+;; For e2wm
+
+(pophint:defsituation e2wm)
+
+(pophint:defsource :name "e2wm-files"
+                   :description "Node in files plugin of e2wm."
+                   :source '((dedicated . e2wm)
+                             (regexp . "^\\([^ ]+\\)")
+                             (requires . 1)
+                             (highlight . nil)
+                             (activebufferp . (lambda (buff)
+                                                (with-current-buffer buff
+                                                  (and (e2wm:managed-p)
+                                                       (eq major-mode 'e2wm:def-plugin-files-mode)))))
+                             (action . (lambda (hint)
+                                         (select-window (pophint:hint-window hint))
+                                         (goto-char (pophint:hint-startpt hint))
+                                         (e2wm:def-plugin-files-select-command)))))
+
+(pophint:defsource :name "e2wm-history"
+                   :description "Entry in history list plugin of e2wm."
+                   :source '((dedicated . e2wm)
+                             (regexp . "^ +[0-9]+ +\\([^ ]+\\)")
+                             (requires . 1)
+                             (highlight . nil)
+                             (activebufferp . (lambda (buff)
+                                                (with-current-buffer buff
+                                                  (and (e2wm:managed-p)
+                                                       (eq major-mode 'e2wm:def-plugin-history-list-mode)))))
+                             (action . (lambda (hint)
+                                         (select-window (pophint:hint-window hint))
+                                         (goto-char (pophint:hint-startpt hint))
+                                         (e2wm:def-plugin-history-list-select-command)))))
+
+(pophint:defsource :name "e2wm-history2"
+                   :description "Entry in history list2 plugin of e2wm."
+                   :source '((dedicated . e2wm)
+                             (regexp . "^\\(?:<-\\)?\\(?:->\\)? +[0-9]+ +\\([^ ]+\\)")
+                             (requires . 1)
+                             (highlight . nil)
+                             (activebufferp . (lambda (buff)
+                                                (with-current-buffer buff
+                                                  (and (e2wm:managed-p)
+                                                       (eq major-mode 'e2wm:def-plugin-history-list2-mode)))))
+                             (action . (lambda (hint)
+                                         (select-window (pophint:hint-window hint))
+                                         (goto-char (pophint:hint-startpt hint))
+                                         (e2wm:def-plugin-history-list2-select-command)))))
+
+(pophint:defsource :name "e2wm-imenu"
+                   :description "Entry in imenu plugin of e2wm."
+                   :source '((dedicated . e2wm)
+                             (regexp . "^\\(.+\\) *$")
+                             (requires . 1)
+                             (highlight . nil)
+                             (activebufferp . (lambda (buff)
+                                                (with-current-buffer buff
+                                                  (and (e2wm:managed-p)
+                                                       (eq major-mode 'e2wm:def-plugin-imenu-mode)))))
+                             (action . (lambda (hint)
+                                         (select-window (pophint:hint-window hint))
+                                         (goto-char (pophint:hint-startpt hint))
+                                         (e2wm:def-plugin-imenu-jump-command)))))
 
 
 (provide 'pophint-config)
