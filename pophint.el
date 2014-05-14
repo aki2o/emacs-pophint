@@ -5,7 +5,7 @@
 ;; Author: Hiroaki Otsu <ootsuhiroaki@gmail.com>
 ;; Keywords: popup
 ;; URL: https://github.com/aki2o/emacs-pophint
-;; Version: 0.7.0
+;; Version: 0.7.1
 ;; Package-Requires: ((popup "0.5.0") (log4e "0.2.0") (yaxception "0.1"))
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -452,15 +452,19 @@ SITUATION is symbol used for finding active sources from `pophint:dedicated-sour
              (not-highlight (loop for src in sources
                                   always (and (assq 'highlight src)
                                               (not (assoc-default 'highlight src)))))
+             (actionh (make-hash-table :test 'equal))
              (hints (loop for wnd in (window-list nil nil)
                           append (with-selected-window wnd
-                                    (loop for src in sources
+                                    (loop with buff = (window-buffer)
+                                          for src in sources
                                           for chker = (assoc-default 'activebufferp src)
                                           if (and (functionp chker)
-                                                  (funcall chker (window-buffer)))
-                                          return (pophint--get-hints :source src
-                                                                     :direction 'around
-                                                                     :window wnd)))))
+                                                  (funcall chker buff))
+                                          return (progn
+                                                   (puthash (buffer-name buff) (assoc-default 'action src) actionh)
+                                                   (pophint--get-hints :source src
+                                                                       :direction 'around
+                                                                       :window wnd))))))
              (hint (progn (pophint--show-tip hints not-highlight)
                           (pophint--event-loop :hints hints
                                                :action-name (upcase (symbol-name situation))
@@ -468,12 +472,7 @@ SITUATION is symbol used for finding active sources from `pophint:dedicated-sour
                                                :not-switch-direction t
                                                :not-switch-window t)))
              (action (or (when hint
-                           (with-selected-window (pophint:hint-window hint)
-                             (loop for src in sources
-                                   for chker = (assoc-default 'activebufferp src)
-                                   if (and (functionp chker)
-                                           (funcall chker (window-buffer)))
-                                   return (assoc-default 'action src))))
+                           (gethash (buffer-name (window-buffer (pophint:hint-window hint))) actionh))
                          pophint--default-action)))
         (pophint--do-action hint action)))
     (yaxception:catch 'error e
