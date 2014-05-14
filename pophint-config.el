@@ -5,7 +5,7 @@
 ;; Author: Hiroaki Otsu <ootsuhiroaki@gmail.com>
 ;; Keywords: popup
 ;; URL: https://github.com/aki2o/emacs-pophint
-;; Version: 0.9.0
+;; Version: 0.9.1
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -783,7 +783,13 @@ It's a buffer local variable and list like `pophint-config:quote-chars'."
                                (dedicated . (e2wm))
                                (activebufferp . (lambda (buff)
                                                   (with-current-buffer buff
-                                                    (eq major-mode 'direx:direx-mode))))))
+                                                    (eq major-mode 'direx:direx-mode))))
+                               (action . (lambda (hint)
+                                           (funcall pophint--default-action hint)
+                                           (when (and (featurep 'e2wm)
+                                                      (e2wm:managed-p))
+                                             (direx:find-item-other-window)
+                                             (e2wm:pst-window-select-main))))))
 
   (defun pophint-config:direx-setup ()
     (add-to-list 'pophint:sources 'pophint:source-direx-node))
