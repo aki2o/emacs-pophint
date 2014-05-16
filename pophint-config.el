@@ -5,7 +5,7 @@
 ;; Author: Hiroaki Otsu <ootsuhiroaki@gmail.com>
 ;; Keywords: popup
 ;; URL: https://github.com/aki2o/emacs-pophint
-;; Version: 0.9.2
+;; Version: 0.9.3
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -768,16 +768,19 @@ It's a buffer local variable and list like `pophint-config:quote-chars'."
 
 (when (featurep 'direx)
 
-  (defvar pophint-config:regexp-direx-node (rx-to-string `(and bol (* space)
-                                                               (or ,direx:leaf-icon
-                                                                   ,direx:open-icon
-                                                                   ,direx:closed-icon)
-                                                               (group (+ not-newline))
-                                                               (* space) eol)))
+  (defvar pophint-config:regexp-direx-node nil)
+  (defun pophint-config:direx-node-regexp ()
+    (or pophint-config:regexp-direx-node
+        (setq pophint-config:regexp-direx-node (rx-to-string `(and bol (* space)
+                                                                   (or ,direx:leaf-icon
+                                                                       ,direx:open-icon
+                                                                       ,direx:closed-icon)
+                                                                   (group (+ not-newline))
+                                                                   (* space) eol)))))
   (pophint:defsource :name "direx-node"
                      :description "Node on DireX."
-                     :source `((shown . "Node")
-                               (regexp . ,pophint-config:regexp-direx-node)
+                     :source '((shown . "Node")
+                               (regexp . pophint-config:direx-node-regexp)
                                (requires . 1)
                                (highlight . nil)
                                (dedicated . (e2wm))

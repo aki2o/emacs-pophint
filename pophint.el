@@ -5,7 +5,7 @@
 ;; Author: Hiroaki Otsu <ootsuhiroaki@gmail.com>
 ;; Keywords: popup
 ;; URL: https://github.com/aki2o/emacs-pophint
-;; Version: 0.7.1
+;; Version: 0.7.2
 ;; Package-Requires: ((popup "0.5.0") (log4e "0.2.0") (yaxception "0.1"))
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -649,8 +649,10 @@ USE-POS-TIP is t or nil. If omitted, inherit `pophint:use-pos-tip'."
 (defsubst pophint--get-hint-regexp (source)
   (let ((re (or (assoc-default 'regexp source)
                 pophint--default-search-regexp)))
-    (cond ((symbolp re) (symbol-value re))
-          (t            re))))
+    (cond ((stringp re)   re)
+          ((boundp re)    (symbol-value re))
+          ((functionp re) (funcall re))
+          (t              (eval re)))))
 
 (defsubst pophint--get-search-functions (srcmtd direction)
   (cond ((functionp srcmtd)
