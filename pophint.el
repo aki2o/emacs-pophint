@@ -5,7 +5,7 @@
 ;; Author: Hiroaki Otsu <ootsuhiroaki@gmail.com>
 ;; Keywords: popup
 ;; URL: https://github.com/aki2o/emacs-pophint
-;; Version: 0.7.2
+;; Version: 0.7.3
 ;; Package-Requires: ((popup "0.5.0") (log4e "0.2.0") (yaxception "0.1"))
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -249,6 +249,14 @@ If nil, it means limitless."
                                                      (trace . "trace")))
 (pophint--log-set-level 'trace)
 
+
+(defmacro pophint::aif (test then &rest else)
+  (declare (indent 2))
+  `(let ((it ,test)) (if it ,then ,@else)))
+
+(defmacro pophint::awhen (test &rest body)
+  (declare (indent 1))
+  `(let ((it ,test)) (when it ,@body)))
 
 (defmacro pophint:defsituation (situation)
   "Define the command to pop-up hint-tip in SITUATION.
@@ -745,7 +753,10 @@ USE-POS-TIP is t or nil. If omitted, inherit `pophint:use-pos-tip'."
                            (list (nth 0 (get-buffer-window-list)))))
             (with-selected-window wnd
               (save-restriction
-                (narrow-to-region (window-start) (window-end))
+                (yaxception:$
+                  (yaxception:try (narrow-to-region (window-start) (window-end)))
+                  (yaxception:catch 'error e
+                    (pophint--warn "failed narrow region : window:%s startpt:%s endpt:%s" wnd (window-start) (window-end))))
                 (dolist (srchfnc srchfuncs)
                   (save-excursion
                     (loop initially (progn
