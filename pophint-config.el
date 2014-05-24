@@ -5,7 +5,7 @@
 ;; Author: Hiroaki Otsu <ootsuhiroaki@gmail.com>
 ;; Keywords: popup
 ;; URL: https://github.com/aki2o/emacs-pophint
-;; Version: 0.9.3
+;; Version: 0.9.4
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -802,71 +802,139 @@ It's a buffer local variable and list like `pophint-config:quote-chars'."
   )
 
 
+;;;;;;;;;;;;;;;;
+;; For Widget
+
+(defun pophint-config:widget-value (w)
+  (loop for sexp in '((ignore-errors (widget-value w))
+                      (ignore-errors (widget-get w :value)))
+        for ret = (eval sexp)
+        if (stringp ret) return ret
+        finally return ""))
+
+(pophint:defsource
+  :name "widget"
+  :description "Widget"
+  :source '((shown . "Widget")
+            (requires . 0)
+            (highlight . nil)
+            (activebufferp . (lambda (buff)
+                               (with-current-buffer buff
+                                 (when (where-is-internal 'widget-forward (current-local-map))
+                                   t))))
+            (method . ((lambda ()
+                         (when (not (eq (pophint:get-current-direction) 'backward))
+                           (let* ((pt (point))
+                                  (mpt (progn (widget-move 1) (point)))
+                                  (w (when (> mpt pt) (widget-at))))
+                             (when w
+                               (pophint--trace "found widget. value:[%s] " (pophint-config:widget-value w))
+                               (make-pophint:hint :startpt (point)
+                                                  :endpt (+ (point) 1)
+                                                  :value (pophint-config:widget-value w))))))
+                       (lambda ()
+                         (when (not (eq (pophint:get-current-direction) 'forward))
+                           (let* ((pt (point))
+                                  (mpt (progn (widget-move -1) (point)))
+                                  (w (when (< mpt pt) (widget-at))))
+                             (when w
+                               (pophint--trace "found widget. value:[%s] " (pophint-config:widget-value w))
+                               (make-pophint:hint :startpt (point)
+                                                  :endpt (+ (point) 1)
+                                                  :value (pophint-config:widget-value w))))))))
+            (action . (lambda (hint)
+                        (select-window (pophint:hint-window hint))
+                        (goto-char (pophint:hint-startpt hint))
+                        (widget-apply (widget-at) :action)))))
+
+(defun pophint-config:widget-setup ()
+  (add-to-list 'pophint:sources 'pophint:source-widget))
+
+(add-hook 'Custom-mode-hook 'pophint-config:widget-setup t)
+
+
 ;;;;;;;;;;;;;;
 ;; For e2wm
 
 (pophint:defsituation e2wm)
 
-(pophint:defsource :name "e2wm-files"
-                   :description "Node in files plugin of e2wm."
-                   :source '((dedicated . e2wm)
-                             (regexp . "^\\([^ ]+\\)")
-                             (requires . 1)
-                             (highlight . nil)
-                             (activebufferp . (lambda (buff)
-                                                (with-current-buffer buff
-                                                  (and (e2wm:managed-p)
-                                                       (eq major-mode 'e2wm:def-plugin-files-mode)))))
-                             (action . (lambda (hint)
-                                         (select-window (pophint:hint-window hint))
-                                         (goto-char (pophint:hint-startpt hint))
-                                         (e2wm:def-plugin-files-select-command)))))
+(pophint:defsource
+  :name "e2wm-files"
+  :description "Node in files plugin of e2wm."
+  :source '((dedicated . e2wm)
+            (regexp . "^\\([^ ]+\\)")
+            (requires . 1)
+            (highlight . nil)
+            (activebufferp . (lambda (buff)
+                               (with-current-buffer buff
+                                 (and (e2wm:managed-p)
+                                      (eq major-mode 'e2wm:def-plugin-files-mode)))))
+            (action . (lambda (hint)
+                        (select-window (pophint:hint-window hint))
+                        (goto-char (pophint:hint-startpt hint))
+                        (e2wm:def-plugin-files-select-command)))))
 
-(pophint:defsource :name "e2wm-history"
-                   :description "Entry in history list plugin of e2wm."
-                   :source '((dedicated . e2wm)
-                             (regexp . "^ +[0-9]+ +\\([^ ]+\\)")
-                             (requires . 1)
-                             (highlight . nil)
-                             (activebufferp . (lambda (buff)
-                                                (with-current-buffer buff
-                                                  (and (e2wm:managed-p)
-                                                       (eq major-mode 'e2wm:def-plugin-history-list-mode)))))
-                             (action . (lambda (hint)
-                                         (select-window (pophint:hint-window hint))
-                                         (goto-char (pophint:hint-startpt hint))
-                                         (e2wm:def-plugin-history-list-select-command)))))
+(pophint:defsource
+  :name "e2wm-history"
+  :description "Entry in history list plugin of e2wm."
+  :source '((dedicated . e2wm)
+            (regexp . "^ +[0-9]+ +\\([^ ]+\\)")
+            (requires . 1)
+            (highlight . nil)
+            (activebufferp . (lambda (buff)
+                               (with-current-buffer buff
+                                 (and (e2wm:managed-p)
+                                      (eq major-mode 'e2wm:def-plugin-history-list-mode)))))
+            (action . (lambda (hint)
+                        (select-window (pophint:hint-window hint))
+                        (goto-char (pophint:hint-startpt hint))
+                        (e2wm:def-plugin-history-list-select-command)))))
 
-(pophint:defsource :name "e2wm-history2"
-                   :description "Entry in history list2 plugin of e2wm."
-                   :source '((dedicated . e2wm)
-                             (regexp . "^\\(?:<-\\)?\\(?:->\\)? +[0-9]+ +\\([^ ]+\\)")
-                             (requires . 1)
-                             (highlight . nil)
-                             (activebufferp . (lambda (buff)
-                                                (with-current-buffer buff
-                                                  (and (e2wm:managed-p)
-                                                       (eq major-mode 'e2wm:def-plugin-history-list2-mode)))))
-                             (action . (lambda (hint)
-                                         (select-window (pophint:hint-window hint))
-                                         (goto-char (pophint:hint-startpt hint))
-                                         (e2wm:def-plugin-history-list2-select-command)
-                                         (e2wm:pst-window-select-main)))))
+(pophint:defsource
+  :name "e2wm-history2"
+  :description "Entry in history list2 plugin of e2wm."
+  :source '((dedicated . e2wm)
+            (regexp . "^\\(?:<-\\)?\\(?:->\\)? +[0-9]+ +\\([^ ]+\\)")
+            (requires . 1)
+            (highlight . nil)
+            (activebufferp . (lambda (buff)
+                               (with-current-buffer buff
+                                 (and (e2wm:managed-p)
+                                      (eq major-mode 'e2wm:def-plugin-history-list2-mode)))))
+            (action . (lambda (hint)
+                        (select-window (pophint:hint-window hint))
+                        (goto-char (pophint:hint-startpt hint))
+                        (e2wm:def-plugin-history-list2-select-command)
+                        (e2wm:pst-window-select-main)))))
 
-(pophint:defsource :name "e2wm-imenu"
-                   :description "Entry in imenu plugin of e2wm."
-                   :source '((dedicated . e2wm)
-                             (regexp . "^\\(.+\\) *$")
-                             (requires . 1)
-                             (highlight . nil)
-                             (activebufferp . (lambda (buff)
-                                                (with-current-buffer buff
-                                                  (and (e2wm:managed-p)
-                                                       (eq major-mode 'e2wm:def-plugin-imenu-mode)))))
-                             (action . (lambda (hint)
-                                         (select-window (pophint:hint-window hint))
-                                         (goto-char (pophint:hint-startpt hint))
-                                         (e2wm:def-plugin-imenu-jump-command)))))
+(pophint:defsource
+  :name "e2wm-imenu"
+  :description "Entry in imenu plugin of e2wm."
+  :source '((dedicated . e2wm)
+            (regexp . "^\\(.+\\) *$")
+            (requires . 1)
+            (highlight . nil)
+            (activebufferp . (lambda (buff)
+                               (with-current-buffer buff
+                                 (and (e2wm:managed-p)
+                                      (eq major-mode 'e2wm:def-plugin-imenu-mode)))))
+            (action . (lambda (hint)
+                        (select-window (pophint:hint-window hint))
+                        (goto-char (pophint:hint-startpt hint))
+                        (e2wm:def-plugin-imenu-jump-command)))))
+
+(pophint:defsource
+  :name "e2wm-sww"
+  :description "Entry in sww plugin of e2wm."
+  :source `((init . (lambda ()
+                      (goto-char (point-min))))
+            (dedicated . e2wm)
+            (action . (lambda (hint)
+                        (select-window (pophint:hint-window hint))
+                        (goto-char (pophint:hint-startpt hint))
+                        (widget-apply (widget-at) :action)
+                        (e2wm:pst-window-select-main)))
+            ,@pophint:source-widget))
 
 
 (provide 'pophint-config)
