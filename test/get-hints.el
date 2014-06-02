@@ -16,11 +16,10 @@
                   (with-current-buffer buff
                     (goto-char (point-min))
                     (forward-line)
-                    (pophint--get-hints :source '((regexp . "a\\s-+[a-z]+"))
-                                        :direction 'around)))))
-      (length ret))))
-
-(expectations
+                    (pophint--get-hints
+                     (make-pophint--condition :source '((regexp . "a\\s-+[a-z]+"))
+                                              :direction 'around))))))
+      (length ret)))
   (desc "get-hints forward")
   (expect 2
     (let* ((tfile (tenv-get-tmp-file "pophint" "test.txt" nil nil))
@@ -30,11 +29,10 @@
                   (with-current-buffer buff
                     (goto-char (point-min))
                     (forward-line)
-                    (pophint--get-hints :source '((regexp . "a\\s-+[a-z]+"))
-                                        :direction 'forward)))))
-      (length ret))))
-
-(expectations
+                    (pophint--get-hints
+                     (make-pophint--condition :source '((regexp . "a\\s-+[a-z]+"))
+                                              :direction 'forward))))))
+      (length ret)))
   (desc "get-hints backward")
   (expect 1
     (let* ((tfile (tenv-get-tmp-file "pophint" "test.txt" nil nil))
@@ -44,11 +42,10 @@
                   (with-current-buffer buff
                     (goto-char (point-min))
                     (forward-line)
-                    (pophint--get-hints :source '((regexp . "a\\s-+[a-z]+"))
-                                        :direction 'backward)))))
-      (length ret))))
-
-(expectations
+                    (pophint--get-hints
+                     (make-pophint--condition :source '((regexp . "a\\s-+[a-z]+"))
+                                              :direction 'backward))))))
+      (length ret)))
   (desc "get-hints value startpt endpt")
   (expect '("a hoge" 9 15)
     (let* ((tfile (tenv-get-tmp-file "pophint" "test.txt" nil nil))
@@ -58,15 +55,14 @@
                   (with-current-buffer buff
                     (goto-char (point-min))
                     (forward-line)
-                    (pophint--get-hints :source '((regexp . "a\\s-+[a-z]+"))
-                                        :direction 'backward))))
+                    (pophint--get-hints
+                     (make-pophint--condition :source '((regexp . "a\\s-+[a-z]+"))
+                                              :direction 'backward)))))
            (hint (pop ret)))
       (and (pophint:hint-p hint)
            (list (pophint:hint-value hint)
                  (pophint:hint-startpt hint)
-                 (pophint:hint-endpt hint))))))
-
-(expectations
+                 (pophint:hint-endpt hint)))))
   (desc "get-hints has group regexp")
   (expect '("hoge" 11 15)
     (let* ((tfile (tenv-get-tmp-file "pophint" "test.txt" nil nil))
@@ -76,15 +72,14 @@
                   (with-current-buffer buff
                     (goto-char (point-min))
                     (forward-line)
-                    (pophint--get-hints :source '((regexp . "a\\s-+\\([a-z]+\\)"))
-                                        :direction 'backward))))
+                    (pophint--get-hints
+                     (make-pophint--condition :source '((regexp . "a\\s-+\\([a-z]+\\)"))
+                                              :direction 'backward)))))
            (hint (pop ret)))
       (and (pophint:hint-p hint)
            (list (pophint:hint-value hint)
                  (pophint:hint-startpt hint)
-                 (pophint:hint-endpt hint))))))
-
-(expectations
+                 (pophint:hint-endpt hint)))))
   (desc "get-hints use method")
   (expect '("fuga" 2 7)
     (let* ((tfile (tenv-get-tmp-file "pophint" "test.txt" nil nil))
@@ -94,20 +89,19 @@
                   (with-current-buffer buff
                     (goto-char (point-min))
                     (forward-line)
-                    (pophint--get-hints :source '((regexp . "a\\s-+\\([a-z]+\\)")
-                                                  (method . (lambda ()
-                                                              (when (re-search-backward "hoge" nil t)
-                                                                (make-pophint:hint :value "fuga"
-                                                                                   :startpt 2
-                                                                                   :endpt 7)))))
-                                        :direction 'backward))))
+                    (pophint--get-hints
+                     (make-pophint--condition :source '((regexp . "a\\s-+\\([a-z]+\\)")
+                                                        (method . (lambda ()
+                                                                    (when (re-search-backward "hoge" nil t)
+                                                                      (make-pophint:hint :value "fuga"
+                                                                                         :startpt 2
+                                                                                         :endpt 7)))))
+                                              :direction 'backward)))))
            (hint (pop ret)))
       (and (pophint:hint-p hint)
            (list (pophint:hint-value hint)
                  (pophint:hint-startpt hint)
-                 (pophint:hint-endpt hint))))))
-
-(expectations
+                 (pophint:hint-endpt hint)))))
   (desc "get-hints window")
   (expect 0
     (let* ((tfile (tenv-get-tmp-file "pophint" "test.txt" nil nil))
@@ -120,12 +114,11 @@
                   (with-current-buffer buff
                     (goto-char (point-min))
                     (forward-line)
-                    (pophint--get-hints :source '((regexp . "a\\s-+\\([a-z]+\\)"))
-                                        :direction 'backward
-                                        :window (get-buffer-window buff2))))))
-      (length ret))))
-
-(expectations
+                    (pophint--get-hints
+                     (make-pophint--condition :source '((regexp . "a\\s-+\\([a-z]+\\)"))
+                                              :direction 'backward
+                                              :window (get-buffer-window buff2)))))))
+      (length ret)))
   (desc "get-hints popup created")
   (expect t
     (let* ((tfile (tenv-get-tmp-file "pophint" "test.txt" nil nil))
@@ -138,11 +131,13 @@
                     (with-current-buffer buff
                       (goto-char (point-min))
                       (forward-line)
-                      (let ((hints (pophint--get-hints :source '((regexp . "a\\s-+\\([a-z]+\\)"))
-                                                       :direction 'backward)))
-                        (pophint--show-tip hints nil)
+                      (let ((hints (pophint--get-hints
+                                    (make-pophint--condition :source '((regexp . "a\\s-+\\([a-z]+\\)"))
+                                                             :direction 'backward))))
+                        (pophint--show-hint-tips hints nil)
                         hints))))
            (hint (pop hints)))
       (and (pophint:hint-p hint)
-           (popup-p (pophint:hint-popup hint))))))
+           (popup-p (pophint:hint-popup hint)))))
+  )
 

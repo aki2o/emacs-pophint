@@ -5,293 +5,166 @@
   (desc "event-loop nil")
   (expect (mock (pophint--deletes *))
     (stub pophint--menu-read-key-sequence => nil)
-    (pophint--event-loop :hints (list (make-pophint:hint :value "hoge" :startpt 1 :endpt 2)))))
-
-(expectations
+    (pophint--event-loop (list (make-pophint:hint :value "hoge" :startpt 1 :endpt 2))
+                         (make-pophint--condition)))
   (desc "event-loop empty")
   (expect (mock (pophint--deletes *))
     (stub pophint--menu-read-key-sequence => (kbd ""))
-    (pophint--event-loop :hints (list (make-pophint:hint :value "hoge" :startpt 1 :endpt 2)))))
-
-(expectations
+    (pophint--event-loop (list (make-pophint:hint :value "hoge" :startpt 1 :endpt 2))
+                         (make-pophint--condition)))
   (desc "event-loop quit")
   (expect (mock (keyboard-quit))
     (stub pophint--menu-read-key-sequence => (kbd "q"))
     (stub lookup-key => 'keyboard-quit)
-    (pophint--event-loop :hints (list (make-pophint:hint :value "hoge" :startpt 1 :endpt 2)))))
-
-(expectations
-  (desc "event-loop ret")
+    (pophint--event-loop (list (make-pophint:hint :value "hoge" :startpt 1 :endpt 2))
+                         (make-pophint--condition)))
+  (desc "event-loop return first hint no return from no input")
   (expect nil
     (stub pophint--menu-read-key-sequence => (kbd "q"))
     (stub lookup-key => 'newline)
-    (pophint--event-loop :hints (list (make-pophint:hint :value "hoge" :startpt 1 :endpt 2)
-                                      (make-pophint:hint :value "fuga" :startpt 1 :endpt 2)))))
-
-(expectations
-  (desc "event-loop ret has inputed")
+    (pophint--event-loop (list (make-pophint:hint :value "hoge" :startpt 1 :endpt 2)
+                               (make-pophint:hint :value "fuga" :startpt 1 :endpt 2))
+                         (make-pophint--condition)))
+  (desc "event-loop return first hint return when inputed")
   (expect "hoge"
     (stub pophint--menu-read-key-sequence => (kbd "q"))
     (stub lookup-key => 'newline)
-    (let* ((ret (pophint--event-loop :hints (list (make-pophint:hint :value "hoge" :startpt 1 :endpt 2)
-                                                  (make-pophint:hint :value "fuga" :startpt 1 :endpt 2))
-                                     :inputed "q")))
+    (let* ((ret (pophint--event-loop (list (make-pophint:hint :value "hoge" :startpt 1 :endpt 2)
+                                           (make-pophint:hint :value "fuga" :startpt 1 :endpt 2))
+                                     (make-pophint--condition)
+                                     "q")))
       (and (pophint:hint-p ret)
-           (pophint:hint-value ret)))))
-
-(expectations
-  (desc "event-loop delete-backward-char")
-  (expect (mock (pophint:do :source '((regexp . "hoge"))
-                            :sources '(((regexp . "fuga")) ((regexp . "bar")))
-                            :action '(lambda (hint) (message "hoge"))
-                            :action-name "TestAct"
-                            :direction nil
-                            :not-highlight nil
-                            :window 'hogewnd
-                            :not-switch-window 'hogeswwnd))
+           (pophint:hint-value ret))))
+  (desc "event-loop restart hint")
+  (expect (mock (pophint--let-user-select
+                 (make-pophint--condition :source '((regexp . "hoge")))))
     (stub pophint--menu-read-key-sequence => (kbd "q"))
     (stub lookup-key => 'delete-backward-char)
-    (setq pophint--current-highlight t)
-    (pophint--event-loop :hints (list (make-pophint:hint :value "hoge" :startpt 1 :endpt 2))
-                         :source '((regexp . "hoge"))
-                         :sources '(((regexp . "fuga")) ((regexp . "bar")))
-                         :action '(lambda (hint) (message "hoge"))
-                         :action-name "TestAct"
-                         :direction 'hogedirect
-                         :not-highlight 'hogehigh
-                         :window 'hogewnd
-                         :not-switch-window 'hogeswwnd)))
-
-(expectations
-  (desc "event-loop delete-backward-char not-switch-direction")
-  (expect (mock (pophint:do :source '((regexp . "hoge"))
-                            :sources '(((regexp . "fuga")) ((regexp . "bar")))
-                            :action '(lambda (hint) (message "hoge"))
-                            :action-name "TestAct"
-                            :direction 'hogedirect
-                            :not-highlight nil
-                            :window 'hogewnd
-                            :not-switch-window 'hogeswwnd))
-    (stub pophint--menu-read-key-sequence => (kbd "q"))
-    (stub lookup-key => 'delete-backward-char)
-    (pophint--event-loop :hints (list (make-pophint:hint :value "hoge" :startpt 1 :endpt 2))
-                         :source '((regexp . "hoge"))
-                         :sources '(((regexp . "fuga")) ((regexp . "bar")))
-                         :action '(lambda (hint) (message "hoge"))
-                         :action-name "TestAct"
-                         :direction 'hogedirect
-                         :not-switch-direction t
-                         :not-highlight 'hogehigh
-                         :window 'hogewnd
-                         :not-switch-window 'hogeswwnd)))
-
-(expectations
-  (desc "event-loop backward-delete-char-untabify")
-  (expect (mock (pophint:do :source '((regexp . "hoge"))
-                            :sources '(((regexp . "fuga")) ((regexp . "bar")))
-                            :action '(lambda (hint) (message "hoge"))
-                            :action-name "TestAct"
-                            :direction nil
-                            :not-highlight nil
-                            :window 'hogewnd
-                            :not-switch-window 'hogeswwnd))
-    (stub pophint--menu-read-key-sequence => (kbd "q"))
-    (stub lookup-key => 'backward-delete-char-untabify)
-    (pophint--event-loop :hints (list (make-pophint:hint :value "hoge" :startpt 1 :endpt 2))
-                         :source '((regexp . "hoge"))
-                         :sources '(((regexp . "fuga")) ((regexp . "bar")))
-                         :action '(lambda (hint) (message "hoge"))
-                         :action-name "TestAct"
-                         :direction 'hogedirect
-                         :not-highlight 'hogehigh
-                         :window 'hogewnd
-                         :not-switch-window 'hogeswwnd)))
-
-(expectations
-  (desc "event-loop switch direction")
-  (expect (mock (pophint:do :source '((regexp . "hoge"))
-                            :sources '(((regexp . "fuga")) ((regexp . "bar")))
-                            :action '(lambda (hint) (message "hoge"))
-                            :action-name "TestAct"
-                            :not-highlight nil
-                            :window 'hogewnd
-                            :not-switch-window 'hogeswwnd))
+    (pophint--event-loop (list (make-pophint:hint :value "hoge" :startpt 1 :endpt 2))
+                         (make-pophint--condition :source '((regexp . "hoge")))))
+  (desc "event-loop switch direction from forward")
+  (expect (mock (pophint--let-user-select
+                 (make-pophint--condition :source '((regexp . "hoge"))
+                                          :direction 'backward)))
     (stub pophint--menu-read-key-sequence => (kbd "d"))
-    (setq pophint--current-direction 'around)
-    (pophint--event-loop :hints (list (make-pophint:hint :value "hoge" :startpt 1 :endpt 2))
-                         :source '((regexp . "hoge"))
-                         :sources '(((regexp . "fuga")) ((regexp . "bar")))
-                         :action '(lambda (hint) (message "hoge"))
-                         :action-name "TestAct"
-                         :direction 'hogedirect
-                         :not-highlight 'hogehigh
-                         :window 'hogewnd
-                         :not-switch-window 'hogeswwnd)))
-
-(expectations
-  (desc "event-loop switch direction around")
-  (expect 'forward
+    (pophint--event-loop nil
+                         (make-pophint--condition :source '((regexp . "hoge"))
+                                                  :direction 'forward)))
+  (desc "event-loop switch direction from backward")
+  (expect (mock (pophint--let-user-select
+                 (make-pophint--condition :source '((regexp . "hoge"))
+                                          :direction 'around)))
     (stub pophint--menu-read-key-sequence => (kbd "d"))
-    (stub pophint:do => t)
-    (setq pophint--current-direction 'around)
-    (pophint--event-loop :hints (list (make-pophint:hint :value "hoge" :startpt 1 :endpt 2)))
-    pophint--current-direction))
-
-(expectations
-  (desc "event-loop switch direction forward")
-  (expect 'backward
+    (pophint--event-loop nil
+                         (make-pophint--condition :source '((regexp . "hoge"))
+                                                  :direction 'backward)))
+  (desc "event-loop switch direction from around")
+  (expect (mock (pophint--let-user-select
+                 (make-pophint--condition :source '((regexp . "hoge"))
+                                          :direction 'forward)))
     (stub pophint--menu-read-key-sequence => (kbd "d"))
-    (stub pophint:do => t)
-    (setq pophint--current-direction 'forward)
-    (pophint--event-loop :hints (list (make-pophint:hint :value "hoge" :startpt 1 :endpt 2)))
-    pophint--current-direction))
-
-(expectations
-  (desc "event-loop switch direction backward")
-  (expect 'around
+    (pophint--event-loop nil
+                         (make-pophint--condition :source '((regexp . "hoge"))
+                                                  :direction 'around)))
+  (desc "event-loop switch direction from else")
+  (expect (mock (pophint--let-user-select
+                 (make-pophint--condition :source '((regexp . "hoge"))
+                                          :direction 'around)))
     (stub pophint--menu-read-key-sequence => (kbd "d"))
-    (stub pophint:do => t)
-    (setq pophint--current-direction 'backward)
-    (pophint--event-loop :hints (list (make-pophint:hint :value "hoge" :startpt 1 :endpt 2)))
-    pophint--current-direction))
-
-(expectations
+    (pophint--event-loop nil
+                         (make-pophint--condition :source '((regexp . "hoge")))))
+  ;; (desc "event-loop switch window not exist source")
+  ;; (expect (mock (pophint--let-user-select
+  ;;                (make-pophint--condition :source nil
+  ;;                                         :sources '(((regexp . "HOGEGE") (selector . "H"))
+  ;;                                                    ((regexp . "FUGAGA") (selector . "J")))
+  ;;                                         :window 'hogewnd)))
+  ;;   (stub pophint--menu-read-key-sequence => (kbd "w"))
+  ;;   (stub next-window => 'hogewnd)
+  ;;   (stub pophint--get-available-sources => '(((regexp . "HOGEGE"))
+  ;;                                             ((regexp . "FUGAGA"))))
+  ;;   (save-window-excursion
+  ;;     (delete-other-windows)
+  ;;     (switch-to-buffer-other-window "*Messages*")
+  ;;     (pophint--event-loop nil
+  ;;                          (make-pophint--condition :source '((regexp . "fuga"))
+  ;;                                                   :sources '(((regexp . "fuga"))
+  ;;                                                              ((regexp . "bar")))))))
+  (desc "event-loop switch window exist source")
+  (expect (mock (pophint--let-user-select
+                 (make-pophint--condition :source '((regexp . "FUGAGA"))
+                                          :sources '(((regexp . "HOGEGE") (selector . "H"))
+                                                     ((regexp . "FUGAGA") (selector . "J")))
+                                          :window 'hogewnd)))
+    (stub pophint--menu-read-key-sequence => (kbd "w"))
+    (stub next-window => 'hogewnd)
+    (stub pophint--get-available-sources => '(((regexp . "HOGEGE"))
+                                              ((regexp . "FUGAGA"))))
+    (save-window-excursion
+      (delete-other-windows)
+      (switch-to-buffer-other-window "*Messages*")
+      (pophint--event-loop nil
+                           (make-pophint--condition :source '((regexp . "FUGAGA"))
+                                                    :sources '(((regexp . "fuga"))
+                                                               ((regexp . "bar")))))))
   (desc "event-loop switch source not match")
-  (expect (mock (pophint:do :source '((regexp . "fuga"))
-                            :sources '(((regexp . "fuga")) ((regexp . "bar")))
-                            :action '(lambda (hint) (message "hoge"))
-                            :action-name "TestAct"
-                            :not-highlight nil
-                            :direction nil
-                            :window 'hogewnd
-                            :not-switch-window 'hogeswwnd))
+  (expect (mock (pophint--let-user-select
+                 (make-pophint--condition :source '((regexp . "fuga"))
+                                          :sources '(((regexp . "fuga"))
+                                                     ((regexp . "bar"))))))
     (stub pophint--menu-read-key-sequence => (kbd "s"))
-    (pophint--event-loop :source '((regexp . "hoge"))
-                         :sources '(((regexp . "fuga")) ((regexp . "bar")))
-                         :action '(lambda (hint) (message "hoge"))
-                         :action-name "TestAct"
-                         :direction 'hogedirect
-                         :not-highlight 'hogehigh
-                         :window 'hogewnd
-                         :not-switch-window 'hogeswwnd)))
-
-(expectations
+    (let ((pophint:select-source-method nil))
+      (pophint--event-loop nil
+                           (make-pophint--condition :source '((regexp . "hoge"))
+                                                    :sources '(((regexp . "fuga"))
+                                                               ((regexp . "bar")))))))
   (desc "event-loop switch source match")
-  (expect (mock (pophint:do :source '((regexp . "bar"))
-                            :sources '(((regexp . "fuga")) ((regexp . "bar")))
-                            :action '(lambda (hint) (message "hoge"))
-                            :action-name "TestAct"
-                            :not-highlight nil
-                            :direction nil
-                            :window 'hogewnd
-                            :not-switch-window 'hogeswwnd))
+  (expect (mock (pophint--let-user-select
+                 (make-pophint--condition :source '((regexp . "bar"))
+                                          :sources '(((regexp . "fuga"))
+                                                     ((regexp . "bar"))))))
     (stub pophint--menu-read-key-sequence => (kbd "s"))
-    (pophint--event-loop :source '((regexp . "fuga"))
-                         :sources '(((regexp . "fuga")) ((regexp . "bar")))
-                         :action '(lambda (hint) (message "hoge"))
-                         :action-name "TestAct"
-                         :direction 'hogedirect
-                         :not-highlight 'hogehigh
-                         :window 'hogewnd
-                         :not-switch-window 'hogeswwnd)))
-
-(expectations
-  (desc "event-loop switch source direction")
-  (expect (mock (pophint:do :source '((regexp . "bar"))
-                            :sources '(((regexp . "fuga")) ((regexp . "bar")))
-                            :action '(lambda (hint) (message "hoge"))
-                            :action-name "TestAct"
-                            :not-highlight nil
-                            :direction 'hogedirect
-                            :window 'hogewnd
-                            :not-switch-window 'hogeswwnd))
-    (stub pophint--menu-read-key-sequence => (kbd "s"))
-    (pophint--event-loop :source '((regexp . "fuga"))
-                         :sources '(((regexp . "fuga")) ((regexp . "bar")))
-                         :action '(lambda (hint) (message "hoge"))
-                         :action-name "TestAct"
-                         :direction 'hogedirect
-                         :not-switch-direction t
-                         :not-highlight 'hogehigh
-                         :window 'hogewnd
-                         :not-switch-window 'hogeswwnd)))
-
-(expectations
-  (desc "event-loop switch window not exist source")
-  (expect (mock (pophint:do :source nil
-                            :sources '(((regexp . "HOGEGE")) ((regexp . "FUGAGA")))
-                            :action '(lambda (hint) (message "hoge"))
-                            :action-name "TestAct"
-                            :not-highlight nil
-                            :direction nil
-                            :window *))
-    (stub pophint--menu-read-key-sequence => (kbd "w"))
-    (stub pophint--get-available-sources => '(((regexp . "HOGEGE")) ((regexp . "FUGAGA"))))
-    (save-window-excursion
-      (delete-other-windows)
-      (switch-to-buffer-other-window "*Messages*")
-      (pophint--event-loop :source '((regexp . "fuga"))
-                           :sources '(((regexp . "fuga")) ((regexp . "bar")))
-                           :action '(lambda (hint) (message "hoge"))
-                           :action-name "TestAct"
-                           :direction 'hogedirect
-                           :not-highlight 'hogehigh))))
-
-(expectations
-  (desc "event-loop switch window exist source")
-  (expect (mock (pophint:do :source '((regexp . "FUGAGA"))
-                            :sources '(((regexp . "HOGEGE")) ((regexp . "FUGAGA")))
-                            :action '(lambda (hint) (message "hoge"))
-                            :action-name "TestAct"
-                            :not-highlight nil
-                            :direction nil
-                            :window *))
-    (stub pophint--menu-read-key-sequence => (kbd "w"))
-    (stub pophint--get-available-sources => '(((regexp . "HOGEGE")) ((regexp . "FUGAGA"))))
-    (save-window-excursion
-      (delete-other-windows)
-      (switch-to-buffer-other-window "*Messages*")
-      (pophint--event-loop :source '((regexp . "FUGAGA"))
-                           :sources '(((regexp . "fuga")) ((regexp . "bar")))
-                           :action '(lambda (hint) (message "hoge"))
-                           :action-name "TestAct"
-                           :direction 'hogedirect
-                           :not-highlight 'hogehigh))))
-
-(expectations
-  (desc "event-loop switch window exist source")
-  (expect (mock (pophint:do :source '((regexp . "FUGAGA"))
-                            :sources '(((regexp . "HOGEGE")) ((regexp . "FUGAGA")))
-                            :action '(lambda (hint) (message "hoge"))
-                            :action-name "TestAct"
-                            :not-highlight nil
-                            :direction 'hogedirect
-                            :window *))
-    (stub pophint--menu-read-key-sequence => (kbd "w"))
-    (stub pophint--get-available-sources => '(((regexp . "HOGEGE")) ((regexp . "FUGAGA"))))
-    (save-window-excursion
-      (delete-other-windows)
-      (switch-to-buffer-other-window "*Messages*")
-      (pophint--event-loop :source '((regexp . "FUGAGA"))
-                           :sources '(((regexp . "fuga")) ((regexp . "bar")))
-                           :action '(lambda (hint) (message "hoge"))
-                           :action-name "TestAct"
-                           :direction 'hogedirect
-                           :not-switch-direction t
-                           :not-highlight 'hogehigh))))
-
-(expectations
+    (let ((pophint:select-source-method nil))
+      (pophint--event-loop nil
+                           (make-pophint--condition :source '((regexp . "fuga"))
+                                                    :sources '(((regexp . "fuga"))
+                                                               ((regexp . "bar")))))))
+  (desc "event-loop select source use-source-char")
+  (expect (mock (pophint--let-user-select
+                 (make-pophint--condition :source '((regexp . "bar") (selector . "2"))
+                                          :sources '(((regexp . "fuga") (selector . "1"))
+                                                     ((regexp . "bar") (selector . "2"))))))
+    (stub pophint--menu-read-key-sequence => (kbd "2"))
+    (let ((pophint:select-source-method 'use-source-char))
+      (pophint--event-loop nil
+                           (make-pophint--condition :source '((regexp . "hoge"))
+                                                    :sources '(((regexp . "fuga") (selector . "1"))
+                                                               ((regexp . "bar") (selector . "2")))))))
+  (desc "event-loop select source use-popup-char")
+  (expect (mock (pophint--let-user-select
+                 (make-pophint--condition :source '((regexp . "fuga") (selector . "H"))
+                                          :sources '(((regexp . "fuga") (selector . "H"))
+                                                     ((regexp . "bar") (selector . "J"))))))
+    (stub pophint--menu-read-key-sequence => (kbd "h"))
+    (let ((pophint:select-source-method 'use-popup-char))
+      (pophint--event-loop nil
+                           (make-pophint--condition :source '((regexp . "hoge"))
+                                                    :sources '(((regexp . "fuga") (selector . "H"))
+                                                               ((regexp . "bar") (selector . "J"))))
+                           ""
+                           t)))
   (desc "event-loop some command")
   (expect (mock (call-interactively 'forward-char))
     (stub pophint--menu-read-key-sequence => (kbd "q"))
     (stub lookup-key => 'forward-char)
-    (pophint--event-loop :hints (list (make-pophint:hint :value "hoge" :startpt 1 :endpt 2)))))
-
-(expectations
-  (desc "event-loop exit")
+    (pophint--event-loop (list (make-pophint:hint :value "hoge" :startpt 1 :endpt 2))
+                         (make-pophint--condition)))
+  (desc "event-loop detect hint")
   (expect "hoge"
-    (let* ((ret (pophint--event-loop :hints (list (make-pophint:hint :value "hoge" :startpt 1 :endpt 2))
-                                     :inputed "q")))
+    (let* ((ret (pophint--event-loop (list (make-pophint:hint :value "hoge" :startpt 1 :endpt 2))
+                                     (make-pophint--condition)
+                                     "q")))
       (and (pophint:hint-p ret)
-           (pophint:hint-value ret)))))
+           (pophint:hint-value ret))))
+  )
 
