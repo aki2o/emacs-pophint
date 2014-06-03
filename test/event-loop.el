@@ -76,8 +76,8 @@
   ;; (desc "event-loop switch window not exist source")
   ;; (expect (mock (pophint--let-user-select
   ;;                (make-pophint--condition :source nil
-  ;;                                         :sources '(((regexp . "HOGEGE") (selector . "H"))
-  ;;                                                    ((regexp . "FUGAGA") (selector . "J")))
+  ;;                                         :sources '(((regexp . "HOGEGE"))
+  ;;                                                    ((regexp . "FUGAGA")))
   ;;                                         :window 'hogewnd)))
   ;;   (stub pophint--menu-read-key-sequence => (kbd "w"))
   ;;   (stub next-window => 'hogewnd)
@@ -93,8 +93,8 @@
   (desc "event-loop switch window exist source")
   (expect (mock (pophint--let-user-select
                  (make-pophint--condition :source '((regexp . "FUGAGA"))
-                                          :sources '(((regexp . "HOGEGE") (selector . "H"))
-                                                     ((regexp . "FUGAGA") (selector . "J")))
+                                          :sources '(((regexp . "HOGEGE"))
+                                                     ((regexp . "FUGAGA")))
                                           :window 'hogewnd)))
     (stub pophint--menu-read-key-sequence => (kbd "w"))
     (stub next-window => 'hogewnd)
@@ -113,7 +113,8 @@
                                           :sources '(((regexp . "fuga"))
                                                      ((regexp . "bar"))))))
     (stub pophint--menu-read-key-sequence => (kbd "s"))
-    (let ((pophint:select-source-method nil))
+    (let ((pophint:select-source-method nil)
+          (pophint:switch-source-delay nil))
       (pophint--event-loop nil
                            (make-pophint--condition :source '((regexp . "hoge"))
                                                     :sources '(((regexp . "fuga"))
@@ -124,7 +125,8 @@
                                           :sources '(((regexp . "fuga"))
                                                      ((regexp . "bar"))))))
     (stub pophint--menu-read-key-sequence => (kbd "s"))
-    (let ((pophint:select-source-method nil))
+    (let ((pophint:select-source-method nil)
+          (pophint:switch-source-delay nil))
       (pophint--event-loop nil
                            (make-pophint--condition :source '((regexp . "fuga"))
                                                     :sources '(((regexp . "fuga"))

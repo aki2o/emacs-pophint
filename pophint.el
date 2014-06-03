@@ -5,7 +5,7 @@
 ;; Author: Hiroaki Otsu <ootsuhiroaki@gmail.com>
 ;; Keywords: popup
 ;; URL: https://github.com/aki2o/emacs-pophint
-;; Version: 0.8.2
+;; Version: 0.8.3
 ;; Package-Requires: ((popup "0.5.0") (log4e "0.2.0") (yaxception "0.1"))
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -50,6 +50,8 @@
 ;; (define-key global-map (kbd "C-+") 'pophint:do)
 ;; (define-key global-map (kbd "M-;") 'pophint:redo)
 ;; (define-key global-map (kbd "C-M-;") 'pophint:do-interactively)
+;; 
+;; For more information, see Configuration section in <https://github.com/aki2o/emacs-pophint/wiki>
 
 ;;; Customization:
 ;; 
@@ -62,6 +64,10 @@
 ;; Method to select source.
 ;; `pophint:switch-source-char'
 ;; Character for switching source used to pop-up.
+;; `pophint:switch-source-reverse-char'
+;; Character for switching source used to pop-up in reverse.
+;; `pophint:switch-source-delay'
+;; Second for delay to switch source used to pop-up.
 ;; `pophint:switch-direction-char'
 ;; Character for switching direction of pop-up.
 ;; `pophint:switch-window-char'
@@ -149,7 +155,7 @@
   :type 'string
   :group 'pophint)
 
-(defcustom pophint:select-source-method 'use-popup-char
+(defcustom pophint:select-source-method nil
   "Method to select source.
 
 This value is one of the following symbols.
@@ -166,6 +172,18 @@ This value is one of the following symbols.
 (defcustom pophint:switch-source-char "s"
   "Character for switching source used to pop-up."
   :type 'string
+  :group 'pophint)
+
+(defcustom pophint:switch-source-reverse-char "S"
+  "Character for switching source used to pop-up in reverse."
+  :type 'string
+  :group 'pophint)
+
+(defcustom pophint:switch-source-delay 0.5
+  "Second for delay to switch source used to pop-up.
+
+If nil, it means not delay."
+  :type 'number
   :group 'pophint)
 
 (defcustom pophint:switch-direction-char "d"
@@ -653,6 +671,22 @@ If nil, it means limitless."
       (pophint--error "failed show hint tips : %s\n%s" (yaxception:get-text e) (yaxception:get-stack-trace-string e))
       (yaxception:throw e))))
 
+(defsubst pophint--get-next-source (source sources &optional reverse)
+  (loop with maxidx = (- (length sources) 1)
+        with i = (if reverse maxidx 0)
+        with endi = (if reverse 0 maxidx)
+        while (not (= i endi))
+        for currsrc = (nth i sources)
+        if (equal source currsrc)
+        return (let* ((nidx (if reverse (- i 1) (+ i 1)))
+                      (nidx (cond ((< nidx 0)      maxidx)
+                                  ((> nidx maxidx) 0)
+                                  (t               nidx))))
+                 (nth nidx sources))
+        do (if reverse (decf i) (incf i))
+        finally return (let ((nidx (if reverse maxidx 0)))
+                         (nth nidx sources))))
+
 (defun* pophint--event-loop (hints cond &optional (inputed "") source-selection)
   (yaxception:$
     (yaxception:try
@@ -747,20 +781,22 @@ If nil, it means limitless."
                 (setf (pophint--condition-sources cond) nsources)
                 (pophint--let-user-select cond)))
              ;; Switch source
-             ((and (string= key pophint:switch-source-char)
+             ((and (or (string= key pophint:switch-source-char)
+                       (string= key pophint:switch-source-reverse-char))
                    (not not-switch-source))
               (pophint--debug "user inputed switch source")
               (if (eq pophint:select-source-method 'use-popup-char)
                   (pophint--event-loop hints cond "" t)
-                (let* ((nsource (loop for i from 1 to (length sources)
-                                      for currsrc = (nth (- i 1) sources)
-                                      if (equal source currsrc)
-                                      return (cond ((= i (length sources)) (nth 0 sources))
-                                                   (t                      (nth i sources)))
-                                      finally return (nth 0 sources))))
-                  (pophint--deletes hints)
-                  (setf (pophint--condition-source cond) nsource)
-                  (pophint--let-user-select cond))))
+                (loop with reverse = (string= key pophint:switch-source-reverse-char)
+                      do (setf (pophint--condition-source cond)
+                               (pophint--get-next-source (pophint--condition-source cond) sources reverse))
+                      while (and pophint:switch-source-delay
+                                 (string= key (pophint--menu-read-key-sequence
+                                               (pophint--make-prompt cond (length hints))
+                                               (pophint--condition-use-pos-tip cond)
+                                               pophint:switch-source-delay))))
+                (pophint--deletes hints)
+                (pophint--let-user-select cond)))
              ;; Select source
              ((and (or (and (string-match key pophint:select-source-chars)
                             (eq pophint:select-source-method 'use-source-char))

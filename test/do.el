@@ -204,8 +204,8 @@
   (expect (mock (pophint--event-loop
                  'hogehints
                  (make-pophint--condition :source '((regexp . "hoge"))
-                                          :sources '(((regexp . "fuga") (selector . "H"))
-                                                     ((regexp . "bar") (selector . "J")))
+                                          :sources '(((regexp . "fuga"))
+                                                     ((regexp . "bar")))
                                           :action '(lambda (hint) (message "hoge"))
                                           :action-name "Test"
                                           :direction 'hogedirection
