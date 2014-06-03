@@ -155,17 +155,17 @@
   :type 'string
   :group 'pophint)
 
-(defcustom pophint:select-source-method nil
+(defcustom pophint:select-source-method 'use-source-char
   "Method to select source.
 
 This value is one of the following symbols.
- - use-popup-char  ... Push the key bound to each of sources from `pophint:popup-chars'
-                       after pushing `pophint:switch-source-char'.
  - use-source-char ... Push the key bound to each of sources from `pophint:select-source-chars'
                        without pushing `pophint:switch-source-char'.
+ - use-popup-char  ... Push the key bound to each of sources from `pophint:popup-chars'
+                       after pushing `pophint:switch-source-char'.
  - nil             ... Push `pophint:switch-source-char' only."
-  :type '(choice (const use-popup-char)
-                 (const use-source-char)
+  :type '(choice (const use-source-char)
+                 (const use-popup-char)
                  (const nil))
   :group 'pophint)
 

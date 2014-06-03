@@ -86,10 +86,12 @@
   ;;   (save-window-excursion
   ;;     (delete-other-windows)
   ;;     (switch-to-buffer-other-window "*Messages*")
-  ;;     (pophint--event-loop nil
-  ;;                          (make-pophint--condition :source '((regexp . "fuga"))
-  ;;                                                   :sources '(((regexp . "fuga"))
-  ;;                                                              ((regexp . "bar")))))))
+  ;;     (let ((pophint:select-source-method nil)
+  ;;           (pophint:switch-source-delay nil))
+  ;;         (pophint--event-loop nil
+  ;;                              (make-pophint--condition :source '((regexp . "fuga"))
+  ;;                                                       :sources '(((regexp . "fuga"))
+  ;;                                                                  ((regexp . "bar"))))))))
   (desc "event-loop switch window exist source")
   (expect (mock (pophint--let-user-select
                  (make-pophint--condition :source '((regexp . "FUGAGA"))
@@ -103,10 +105,12 @@
     (save-window-excursion
       (delete-other-windows)
       (switch-to-buffer-other-window "*Messages*")
-      (pophint--event-loop nil
-                           (make-pophint--condition :source '((regexp . "FUGAGA"))
-                                                    :sources '(((regexp . "fuga"))
-                                                               ((regexp . "bar")))))))
+      (let ((pophint:select-source-method nil)
+            (pophint:switch-source-delay nil))
+        (pophint--event-loop nil
+                             (make-pophint--condition :source '((regexp . "FUGAGA"))
+                                                      :sources '(((regexp . "fuga"))
+                                                                 ((regexp . "bar"))))))))
   (desc "event-loop switch source not match")
   (expect (mock (pophint--let-user-select
                  (make-pophint--condition :source '((regexp . "fuga"))
