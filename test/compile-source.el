@@ -2,35 +2,28 @@
 (require 'el-expectations)
 
 (expectations
-  (desc "expand-source symbol")
+  (desc "compile-source symbol")
   (expect '((shown . "hoge") (regexp . "\\`hoge\\'"))
     (pophint:defsource :name "hoge"
                        :source '((regexp . "\\`hoge\\'")))
-    (pophint--expand-source 'pophint:source-hoge)))
-
-(expectations
-  (desc "expand-source alist")
+    (pophint--compile-source 'pophint:source-hoge))
+  (desc "compile-source alist")
   (expect '((shown . "hoge") (regexp . "\\`hoge\\'"))
     (pophint:defsource :name "hoge"
                        :source '((regexp . "\\`hoge\\'")))
-    (pophint--expand-source pophint:source-hoge)))
-
-(expectations
-  (desc "expand-source list of symbol")
+    (pophint--compile-source pophint:source-hoge))
+  (desc "compile-source list of symbol")
   (expect '(((shown . "hoge") (regexp . "\\`hoge\\'")))
     (pophint:defsource :name "hoge"
                        :source '((regexp . "\\`hoge\\'")))
     (setq pophint:sources '(pophint:source-hoge))
-    (pophint--expand-sources pophint:sources)))
-
-(expectations
-  (desc "expand-source nil")
+    (pophint--compile-sources pophint:sources))
+  (desc "compile-source nil")
   (expect nil
-    (pophint--expand-source nil)))
-
-(expectations
-  (desc "expand-source symbol of nil")
+    (pophint--compile-source nil))
+  (desc "compile-source symbol of nil")
   (expect nil
     (setq hoge nil)
-    (pophint--expand-source 'hoge)))
+    (pophint--compile-source 'hoge))
+  )
 

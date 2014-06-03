@@ -5,7 +5,7 @@
 ;; Author: Hiroaki Otsu <ootsuhiroaki@gmail.com>
 ;; Keywords: popup
 ;; URL: https://github.com/aki2o/emacs-pophint
-;; Version: 0.7.3
+;; Version: 0.8.0
 ;; Package-Requires: ((popup "0.5.0") (log4e "0.2.0") (yaxception "0.1"))
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -55,15 +55,19 @@
 ;; 
 ;; [EVAL] (autodoc-document-lisp-buffer :type 'user-variable :prefix "pophint:" :docstring t)
 ;; `pophint:popup-chars'
-;; Characters for the pop-up hint.
+;; Characters for pop-up hint.
+;; `pophint:select-source-chars'
+;; Characters for selecting source.
+;; `pophint:select-source-method'
+;; Method to select source.
 ;; `pophint:switch-source-char'
-;; Character for switching using source.
+;; Character for switching source used to pop-up.
 ;; `pophint:switch-direction-char'
 ;; Character for switching direction of pop-up.
 ;; `pophint:switch-window-char'
 ;; Character for switching window of pop-up.
 ;; `pophint:popup-max-tips'
-;; Maximum counts of the pop-up hint.
+;; Maximum counts of pop-up hint.
 ;; `pophint:default-require-length'
 ;; Default minimum length of matched text for pop-up.
 ;; `pophint:switch-direction-p'
@@ -78,12 +82,12 @@
 ;;; API:
 ;; 
 ;; [EVAL] (autodoc-document-lisp-buffer :type 'macro :prefix "pophint:" :docstring t)
-;; `pophint:defsituation'
-;; Define the command to pop-up hint-tip in SITUATION.
 ;; `pophint:defsource'
 ;; Define the variable and command to pop-up hint-tip by using given source.
 ;; `pophint:defaction'
 ;; Define the action that called when finish hint-tip selection and the command using it.
+;; `pophint:defsituation'
+;; Define the command to pop-up hint-tip in SITUATION.
 ;; `pophint:set-allwindow-command'
 ;; Define advice to FUNC for doing pop-up at all windows.
 ;; `pophint:set-not-allwindow-command'
@@ -96,18 +100,18 @@
 ;; 
 ;;  *** END auto-documentation
 ;; [EVAL] (autodoc-document-lisp-buffer :type 'command :prefix "pophint:" :docstring t)
-;; `pophint:toggle-use-pos-tip'
-;; Toggle the status of `pophint:use-pos-tip'.
-;; `pophint:redo'
-;; Redo last pop-up hint-tip using any sources.
-;; `pophint:do-situationally'
-;; Do pop-up hint-tip for SITUATION.
-;; `pophint:do-interactively'
-;; Do pop-up hint-tip asking about what to do after select hint-tip.
-;; `pophint:do-flexibly'
-;; Do pop-up hint-tip using source in `pophint:sources'.
 ;; `pophint:do'
 ;; Do pop-up hint-tip using given source on target to direction.
+;; `pophint:do-flexibly'
+;; Do pop-up hint-tip using source in `pophint:sources'.
+;; `pophint:do-interactively'
+;; Do pop-up hint-tip asking about what to do after select hint-tip.
+;; `pophint:do-situationally'
+;; Do pop-up hint-tip for SITUATION.
+;; `pophint:redo'
+;; Redo last pop-up hint-tip using any sources.
+;; `pophint:toggle-use-pos-tip'
+;; Toggle the status of `pophint:use-pos-tip'.
 ;; 
 ;;  *** END auto-documentation
 ;; [Note] Functions and variables other than listed above, Those specifications may be changed without notice.
@@ -136,12 +140,31 @@
   :prefix "pophint:")
 
 (defcustom pophint:popup-chars "hjklyuiopnm"
-  "Characters for the pop-up hint."
+  "Characters for pop-up hint."
   :type 'string
   :group 'pophint)
 
+(defcustom pophint:select-source-chars "123456789"
+  "Characters for selecting source."
+  :type 'string
+  :group 'pophint)
+
+(defcustom pophint:select-source-method 'use-popup-char
+  "Method to select source.
+
+This value is one of the following symbols.
+ - use-popup-char  ... Push the key bound to each of sources from `pophint:popup-chars'
+                       after pushing `pophint:switch-source-char'.
+ - use-source-char ... Push the key bound to each of sources from `pophint:select-source-chars'
+                       without pushing `pophint:switch-source-char'.
+ - nil             ... Push `pophint:switch-source-char' only."
+  :type '(choice (const use-popup-char)
+                 (const use-source-char)
+                 (const nil))
+  :group 'pophint)
+
 (defcustom pophint:switch-source-char "s"
-  "Character for switching using source."
+  "Character for switching source used to pop-up."
   :type 'string
   :group 'pophint)
 
@@ -156,7 +179,7 @@
   :group 'pophint)
 
 (defcustom pophint:popup-max-tips 200
-  "Maximum counts of the pop-up hint.
+  "Maximum counts of pop-up hint.
 
 If nil, it means limitless."
   :type 'integer
@@ -209,15 +232,32 @@ If nil, it means limitless."
 (defvar pophint:dedicated-sources nil
   "Dedicated sources for pop-up hint tip in particular situation.")
 
-
 (defstruct pophint:hint window popup overlay (startpt 0) (endpt 0) (value ""))
 (defstruct pophint:action name action)
 
 
+(log4e:deflogger "pophint" "%t [%l] %m" "%H:%M:%S" '((fatal . "fatal")
+                                                     (error . "error")
+                                                     (warn  . "warn")
+                                                     (info  . "info")
+                                                     (debug . "debug")
+                                                     (trace . "trace")))
+(pophint--log-set-level 'trace)
+
+
+(defstruct pophint--condition
+  source sources action action-name direction window allwindow use-pos-tip
+  not-highlight not-switch-direction not-switch-window not-switch-source)
+
+(defvar pophint--action-hash (make-hash-table :test 'equal))
+(defvar pophint--enable-allwindow-p nil)
+(defvar pophint--disable-allwindow-p nil)
+
+(defvar pophint--last-hints nil)
+(defvar pophint--last-condition nil)
+
 (defvar pophint--default-search-regexp
   "\\(?:[^a-zA-Z0-9]\\([a-zA-Z0-9][a-zA-Z0-9]\\)\\|[a-zA-Z0-9 ]\\([^a-zA-Z0-9 ][^a-zA-Z0-9 ]\\)\\|\\([^ \t\n]\\)\\s-*\n\\)")
-(defvar pophint--current-direction 'around)
-(defvar pophint--current-highlight nil)
 (defvar pophint--default-source '((shown . "Default")
                                   (regexp . pophint--default-search-regexp)
                                   (requires . 1)
@@ -230,53 +270,590 @@ If nil, it means limitless."
                                                (not (eq (selected-window) wnd)))
                                       (select-window wnd))
                                     (goto-char (pophint:hint-startpt hint)))))
-(defvar pophint--action-hash (make-hash-table :test 'equal))
-(defvar pophint--last-source nil)
-(defvar pophint--last-sources nil)
-(defvar pophint--last-action nil)
-(defvar pophint--last-action-name nil)
-(defvar pophint--last-window nil)
-(defvar pophint--last-hints nil)
-(defvar pophint--enable-allwindow-p nil)
-(defvar pophint--disable-allwindow-p nil)
+(defvar pophint--default-action-name "Go/SrcAct")
 
 
-(log4e:deflogger "pophint" "%t [%l] %m" "%H:%M:%S" '((fatal . "fatal")
-                                                     (error . "error")
-                                                     (warn  . "warn")
-                                                     (info  . "info")
-                                                     (debug . "debug")
-                                                     (trace . "trace")))
-(pophint--log-set-level 'trace)
+;;;;;;;;;;;;;
+;; Utility
 
-
-(defmacro pophint::aif (test then &rest else)
+(defmacro pophint--aif (test then &rest else)
   (declare (indent 2))
   `(let ((it ,test)) (if it ,then ,@else)))
 
-(defmacro pophint::awhen (test &rest body)
+(defmacro pophint--awhen (test &rest body)
   (declare (indent 1))
   `(let ((it ,test)) (when it ,@body)))
 
-(defmacro pophint:defsituation (situation)
-  "Define the command to pop-up hint-tip in SITUATION.
+(defun* pophint--show-message (msg &rest args)
+  (apply 'message (concat "[PopHint] " msg) args)
+  nil)
 
-Arguments:
-SITUATION is symbol. It's used for finding the sources that is dedicated
-for SITUATION from `pophint:dedicated-sources'.
+(defsubst pophint--current-not-highlight-p (cond)
+  (or (pophint--condition-not-highlight cond)
+      (pophint--awhen (assq 'highlight (pophint--condition-source cond))
+        (not (cdr-safe it)))))
 
-Example:
- (pophint:defsituation e2wm)
-"
-  (declare (indent 0))
-  (let* ((symnm (downcase (replace-regexp-in-string " +" "-" (symbol-name situation))))
-         (fnc-sym (intern (format "pophint:do-situationally-%s" symnm)))
-         (fnc-doc (format "Do `pophint:do-situationally' for '%s'." symnm)))
-    `(progn
-       (defun ,fnc-sym ()
-         ,fnc-doc
-         (interactive)
-         (pophint:do-situationally ',situation)))))
+(defsubst pophint--current-not-switch-source-p (cond)
+  (or (pophint--condition-not-switch-source cond)
+      (< (length (pophint--condition-sources cond)) 2)))
+
+(defsubst pophint--current-action (cond)
+  (or (pophint--condition-action cond)
+      (assoc-default 'action (pophint--condition-source cond))
+      pophint--default-action))
+
+(defsubst pophint--delete (hint)
+  (when (pophint:hint-p hint)
+    (let* ((tip (pophint:hint-popup hint))
+           (ov (pophint:hint-overlay hint)))
+      (when ov (delete-overlay ov))
+      (when tip (popup-delete tip))
+      nil)))
+
+(defun pophint--deletes (hints)
+  (pophint--trace "start delete hints. hints:[%s]" (length hints))
+  (dolist (hint hints)
+    (pophint--delete hint))
+  nil)
+
+(defun pophint--delete-last-hints ()
+  (when pophint--last-hints
+    (pophint--deletes pophint--last-hints)
+    (setq pophint--last-hints nil)))
+
+(defun pophint--compile-to-function (something)
+  (cond ((functionp something)
+         something)
+        ((and (symbolp something)
+              (boundp something))
+         (symbol-value something))
+        ((listp something)
+         something)
+        (t
+         nil)))
+
+(defsubst pophint--compile-source (source)
+  (cond ((symbolp source)
+         (symbol-value source))
+        ((listp source)
+         source)))
+
+(defun pophint--compile-sources (sources)
+  (loop for s in sources
+        collect (pophint--compile-source s)))
+
+(defsubst pophint--make-index-char-string (idx char-list)
+  (if (or (not (stringp char-list))
+          (string= char-list ""))
+      ""
+    (let* ((basei (length char-list)))
+      (loop with ret = ""
+            with n = idx
+            for i = (/ n basei)
+            for r = (- n (* basei i))
+            until (= i 0)
+            do (setq n i)
+            do (setq ret (concat (substring char-list r (+ r 1)) ret))
+            finally return (concat (substring char-list r (+ r 1)) ret)))))
+
+(defsubst pophint--make-unique-char-strings (count char-list)
+  (loop with reth = (make-hash-table :test 'equal)
+        with idx = 0
+        with currcount = 0
+        while (< currcount count)
+        for currstr = (upcase (pophint--make-index-char-string idx char-list))
+        do (incf idx)
+        do (progn (puthash currstr t reth)
+                  (incf currcount))
+        do (let ((chkvalue (substring currstr 0 (- (length currstr) 1))))
+             (when (gethash chkvalue reth)
+               (remhash chkvalue reth)
+               (decf currcount)))
+        finally return (loop for k being the hash-keys in reth collect k)))
+      
+(defun pophint--set-selector-sources (sources)
+  (loop with char-list = (case pophint:select-source-method
+                           (use-popup-char  pophint:popup-chars)
+                           (use-source-char pophint:select-source-chars)
+                           (t               nil))
+        with selectors = (when char-list
+                           (pophint--make-unique-char-strings (length sources) char-list))
+        for src in sources
+        for selector = (when selectors (pop selectors))
+        do (pophint--awhen (assq 'selector src)
+             (setq src (delq it src)))
+        if selector
+        do (add-to-list 'src `(selector . ,selector) t)
+        collect src))
+
+(defun pophint--get-available-sources (window)
+  (let* ((sources (with-current-buffer (or (and (windowp window)
+                                                (window-live-p window)
+                                                (window-buffer window))
+                                           (current-buffer))
+                    (pophint--compile-sources pophint:sources))))
+    (loop for src in (pophint--compile-sources pophint:global-sources)
+          do (add-to-list 'sources src t))
+    ;; (add-to-list 'sources pophint--default-source t)
+    sources))
+
+(defun pophint--do-action (hint action)
+  (when (pophint:hint-p hint)
+    (let* ((tip (pophint:hint-popup hint))
+           (selected (pophint:hint-value hint))
+           (action (pophint--compile-to-function action)))
+      (pophint--debug "start action. selected:[%s] action:%s" selected action)
+      (pophint--delete hint)
+      (when (functionp action) (funcall action hint)))))
+
+
+;;;;;;;;;;;;;;;;;;;;;
+;; For Interactive
+
+(defun pophint--menu-read-key-sequence (prompt use-pos-tip &optional timeout)
+  (pophint--trace "start menu read key sequence. prompt[%s] use-pos-tip[%s] timeout[%s]"
+                  prompt use-pos-tip timeout)
+  ;; Coding by referring to popup-menu-read-key-sequence
+  (catch 'timeout
+    (let ((timer (and timeout
+                      (run-with-timer timeout nil
+                                      (lambda ()
+                                        (if (zerop (length (this-command-keys)))
+                                            (throw 'timeout nil))))))
+          (old-global-map (current-global-map))
+          (temp-global-map (make-sparse-keymap))
+          (overriding-terminal-local-map (make-sparse-keymap)))
+      (substitute-key-definition 'keyboard-quit 'keyboard-quit temp-global-map old-global-map)
+      (define-key temp-global-map [menu-bar] (lookup-key old-global-map [menu-bar]))
+      (define-key temp-global-map [tool-bar] (lookup-key old-global-map [tool-bar]))
+      (when (current-local-map)
+        (define-key overriding-terminal-local-map [menu-bar] (lookup-key (current-local-map) [menu-bar])))
+      (yaxception:$
+        (yaxception:try
+          (use-global-map temp-global-map)
+          (clear-this-command-keys)
+          (if (and use-pos-tip
+                   window-system
+                   (featurep 'pos-tip))
+              (progn (pophint--pos-tip-show prompt)
+                     (read-key-sequence nil))
+            (with-temp-message prompt
+              (read-key-sequence nil))))
+        (yaxception:finally
+          (use-global-map old-global-map)
+          (when timer (cancel-timer timer))
+          (when (and use-pos-tip
+                     (featurep 'pos-tip))
+            (pos-tip-hide)))))))
+
+(defun* pophint--make-source-selection-prompt (sources &key
+                                                       (delimiter "|")
+                                                       highlight-source)
+  (let ((hsrcnm (or (assoc-default 'shown highlight-source)
+                    "")))
+    (mapconcat (lambda (src)
+                 (let* ((srcnm (or (assoc-default 'shown src) "*None*"))
+                        (selector (assoc-default 'selector src)))
+                   (concat (if selector
+                               (concat (propertize selector 'face 'font-lock-keyword-face) ":")
+                             "")
+                           (if (string= hsrcnm srcnm)
+                               (propertize srcnm 'face 'bold)
+                             srcnm))))
+               sources
+               delimiter)))
+
+(defun pophint--make-prompt (cond hint-count)
+  (let* ((source (pophint--condition-source cond))
+         (sources (pophint--condition-sources cond))
+         (actdesc (pophint--condition-action-name cond))
+         (direction (pophint--condition-direction cond))
+         (not-switch-direction (pophint--condition-not-switch-direction cond))
+         (not-switch-window (pophint--condition-not-switch-window cond))
+         (not-switch-source (pophint--current-not-switch-source-p cond))
+         (swsrctext (cond ((not not-switch-source)
+                           (format "%s:SwSrc(%s) "
+                                   (propertize (upcase pophint:switch-source-char) 'face 'font-lock-keyword-face)
+                                   (pophint--make-source-selection-prompt sources
+                                                                          :highlight-source source)))
+                          ((loop for s in sources always (assoc-default 'dedicated source))
+                           "")
+                          (t
+                           (format "Src[%s] " (or (assoc-default 'shown source)
+                                                  "*None*")))))
+         (swdirtext (cond ((not not-switch-direction)
+                           (format "%s:SwDrct(%s) "
+                                   (propertize (upcase pophint:switch-direction-char) 'face 'font-lock-keyword-face)
+                                   (mapconcat (lambda (d)
+                                                (let* ((s (format "%s" d)))
+                                                  (if (eq d direction) (propertize s 'face 'bold) s)))
+                                              '(around forward backward)
+                                              "|")))
+                          (t
+                           "")))
+         (swwndtext (cond ((not not-switch-window)
+                           (format "%s:SwWnd "
+                                   (propertize (upcase pophint:switch-window-char) 'face 'font-lock-keyword-face)))
+                          (t
+                           ""))))
+    (format "Select ch. Hints[%s] Act[%s] %s%s%s" hint-count actdesc swsrctext swdirtext swwndtext)))
+
+(defun pophint--make-prompt-interactively ()
+  (let* ((count 1)
+         (acttext (loop with ret = ""
+                        for k being the hash-keys in pophint--action-hash using (hash-values act)
+                        for desc = (pophint:action-name act)
+                        do (incf count)
+                        do (setq ret (concat ret
+                                             (format "%s:%s "
+                                                     (propertize k 'face 'font-lock-keyword-face)
+                                                     desc)))
+                        finally return ret))
+         (defact (propertize "<RET>" 'face 'font-lock-keyword-face)))
+    (format "Select ch. Actions[%s] %s:Default %s" count defact acttext)))
+
+
+;;;;;;;;;;;;;;;;;
+;; Pop-up Hint
+
+(defun pophint--let-user-select (cond)
+  (when (not (pophint--condition-source cond))
+    (let ((sources (pophint--condition-sources cond)))
+      (setf (pophint--condition-source cond)
+            (or (and (> (length sources) 0) (nth 0 sources))
+                pophint--default-source))))
+  (let ((hints (pophint--get-hints cond)))
+    (pophint--show-hint-tips hints
+                             (pophint--current-not-highlight-p cond))
+    (pophint--event-loop hints cond)))
+
+(defsubst pophint--get-max-tips (source direction)
+  (let ((ret (or (assoc-default 'limit source)
+                 pophint:popup-max-tips)))
+    (when (and (eq direction 'around)
+               ret)
+      (setq ret (/ ret 2)))
+    ret))
+
+(defsubst pophint--get-hint-regexp (source)
+  (let ((re (or (assoc-default 'regexp source)
+                pophint--default-search-regexp)))
+    (cond ((stringp re)   re)
+          ((boundp re)    (symbol-value re))
+          ((functionp re) (funcall re))
+          (t              (eval re)))))
+
+(defsubst pophint--get-search-functions (srcmtd direction)
+  (cond ((functionp srcmtd)
+         (list srcmtd))
+        ((and (listp srcmtd)
+              (> (length srcmtd) 0))
+         srcmtd)
+        (t
+         (case direction
+           (forward  '(re-search-forward))
+           (backward '(re-search-backward))
+           (around   '(re-search-forward re-search-backward))))))
+
+(defun* pophint--get-hints (cond)
+  (let* ((source (pophint--condition-source cond))
+         (direction (pophint--condition-direction cond))
+         (window (pophint--condition-window cond))
+         (allwindow (pophint--condition-allwindow cond))
+         (init (pophint--compile-to-function (assoc-default 'init source)))
+         (requires (or (assoc-default 'requires source)
+                       pophint:default-require-length))
+         (re (pophint--get-hint-regexp source))
+         (srcmtd (pophint--compile-to-function (assoc-default 'method source)))
+         (srchfuncs (pophint--get-search-functions srcmtd direction))
+         (maxtips (pophint--get-max-tips source direction))
+         hints)
+    (dolist (wnd (or (when allwindow (window-list nil t))
+                     (and (windowp window) (window-live-p window) (list window))
+                     (list (nth 0 (get-buffer-window-list)))))
+      (with-selected-window wnd
+        (save-restriction
+          (yaxception:$
+            (yaxception:try (narrow-to-region (window-start) (window-end)))
+            (yaxception:catch 'error e
+              (pophint--warn "failed narrow region : window:%s startpt:%s endpt:%s" wnd (window-start) (window-end))))
+          (dolist (srchfnc srchfuncs)
+            (save-excursion
+              (loop initially (progn
+                                (pophint--trace
+                                 "start searching hint. require:[%s] max:[%s] buffer:[%s] point:[%s]\nregexp: %s\nfunc: %s"
+                                 requires maxtips (current-buffer) (point) re srchfnc)
+                                (when (functionp init) (funcall init)))
+                    with cnt = 0
+                    with orghint
+                    while (and (yaxception:$
+                                 (yaxception:try
+                                   (cond (srcmtd (pophint:hint-p (setq orghint (funcall srchfnc))))
+                                         (t      (funcall srchfnc re nil t))))
+                                 (yaxception:catch 'error e
+                                   (pophint--error "failed seek next popup point : %s\n%s"
+                                                   (yaxception:get-text e) (yaxception:get-stack-trace-string e))))
+                               (or (not maxtips)
+                                   (< cnt maxtips)))
+                    for hint = (or orghint
+                                   (make-pophint:hint :startpt (or (match-beginning 1) (match-beginning 0))
+                                                      :endpt (or (match-end 1) (match-end 0))
+                                                      :value (or (when (match-beginning 1) (match-string-no-properties 1))
+                                                                 (match-string-no-properties 0))))
+                    do (setf (pophint:hint-window hint) (selected-window))
+                    if (and (>= (length (pophint:hint-value hint)) requires)
+                            (not (invisible-p (pophint:hint-startpt hint))))
+                    do (progn (pophint--trace "found hint. text:[%s] startpt:[%s] endpt:[%s]"
+                                              (pophint:hint-value hint) (pophint:hint-startpt hint) (pophint:hint-endpt hint))
+                              (incf cnt)
+                              (setq hints (append hints (list hint))))))))))
+    hints))
+
+(defun pophint--show-hint-tips (hints not-highlight)
+  (pophint--trace "start show hint tips. count:[%s] not-highlight:[%s]" (length hints) not-highlight)
+  (pophint--delete-last-hints)
+  (yaxception:$
+    (yaxception:try
+      (loop with orgwnd = (selected-window)
+            with wnd = orgwnd
+            with tiptexts = (pophint--make-unique-char-strings (length hints) pophint:popup-chars)
+            for hint in hints
+            for tiptext = (or (when tiptexts (pop tiptexts)) "")
+            for nextwnd = (pophint:hint-window hint)
+            if (string= tiptext "")
+            return nil
+            if (not (eq wnd nextwnd))
+            do (progn (select-window nextwnd t)
+                      (setq wnd (selected-window)))
+            do (let ((tip (popup-create (pophint:hint-startpt hint)
+                                        (string-width tiptext)
+                                        1
+                                        :around nil
+                                        :margin-left 0
+                                        :margin-right 0
+                                        :face 'pophint:tip-face))
+                     (ov (when (not not-highlight)
+                           (make-overlay (pophint:hint-startpt hint)
+                                         (pophint:hint-endpt hint)))))
+                 (when ov
+                   (overlay-put ov 'window (selected-window))
+                   (overlay-put ov 'face 'pophint:match-face)
+                   (setf (pophint:hint-overlay hint) ov))
+                 (setf (pophint:hint-popup hint) tip)
+                 (popup-set-list tip (list tiptext))
+                 (popup-draw tip))
+            finally do (select-window orgwnd t)))
+    (yaxception:catch 'error e
+      (pophint--deletes hints)
+      (pophint--error "failed show hint tips : %s\n%s" (yaxception:get-text e) (yaxception:get-stack-trace-string e))
+      (yaxception:throw e))))
+
+(defun* pophint--event-loop (hints cond &optional (inputed "") source-selection)
+  (yaxception:$
+    (yaxception:try
+      (if (and (= (length hints) 1)
+               (not (string= inputed "")))
+          (pop hints)
+        (setq pophint--last-hints hints)
+        (let* ((source (pophint--condition-source cond))
+               (sources (pophint--condition-sources cond))
+               (action-name (pophint--condition-action-name cond))
+               (window (pophint--condition-window cond))
+               (allwindow (pophint--condition-allwindow cond))
+               (not-switch-direction (pophint--condition-not-switch-direction cond))
+               (not-switch-window (pophint--condition-not-switch-window cond))
+               (not-switch-source (pophint--current-not-switch-source-p cond))
+               (key (pophint--menu-read-key-sequence (pophint--make-prompt cond (length hints))
+                                                     (pophint--condition-use-pos-tip cond)))
+               (gbinding (when key (lookup-key (current-global-map) key)))
+               (binding (or (when (and key (current-local-map))
+                              (lookup-key (current-local-map) key))
+                            gbinding)))
+          (pophint--trace "got user input. key:[%s] gbinding:[%s] binding:[%s]" key gbinding binding)
+          (setq pophint--last-hints nil)
+          ;; Case by user input
+          (cond
+           ;; Error
+           ((or (null key) (zerop (length key)))
+            (pophint--warn "can't get user input")
+            (pophint--deletes hints))
+           ;; Quit
+           ((eq gbinding 'keyboard-quit)
+            (pophint--debug "user inputed keyboard-quit")
+            (pophint--deletes hints)
+            (keyboard-quit)
+            nil)
+           ;; Return first hint
+           ((eq gbinding 'newline)
+            (pophint--debug "user inputed newline")
+            (let* ((hint (when (not (string= inputed "")) (pop hints))))
+              (pophint--deletes hints)
+              hint))
+           ;; Restart loop
+           ((or (eq gbinding 'backward-delete-char-untabify)
+                (eq gbinding 'delete-backward-char))
+            (pophint--debug "user inputed delete command")
+            (pophint--deletes hints)
+            (pophint--let-user-select cond))
+           ((eq gbinding 'self-insert-command)
+            (cond
+             ;; Grep hints
+             ((and (string-match key pophint:popup-chars)
+                   (not source-selection))
+              (pophint--debug "user inputed hint char")
+              (let* ((currinputed (concat inputed (upcase key)))
+                     (nhints (loop with re = (concat "\\`" currinputed)
+                                   for hint in hints
+                                   for tip = (pophint:hint-popup hint)
+                                   for tiptextlist = (when (popup-p tip) (popup-list tip))
+                                   for tiptext = (or (when tiptextlist (nth 0 tiptextlist))
+                                                     "")
+                                   if (and (string-match re tiptext)
+                                           (popup-live-p tip))
+                                   collect hint
+                                   else
+                                   do (pophint--delete hint))))
+                (pophint--event-loop nhints cond currinputed)))
+             ;; Switch direction
+             ((and (string= key pophint:switch-direction-char)
+                   (not not-switch-direction))
+              (pophint--debug "user inputed switch direction")
+              (pophint--deletes hints)
+              (let ((ndirection (case (pophint--condition-direction cond)
+                                  (forward  'backward)
+                                  (backward 'around)
+                                  (around   'forward)
+                                  (t        'around))))
+                (setf (pophint--condition-direction cond) ndirection)
+                (pophint--let-user-select cond)))
+             ;; Switch window
+             ((and (string= key pophint:switch-window-char)
+                   (not not-switch-window))
+              (pophint--debug "user inputed switch window")
+              (pophint--deletes hints)
+              (let* ((nwindow (with-selected-window (or (and (windowp window) (window-live-p window) window)
+                                                        (get-buffer-window))
+                                (next-window)))
+                     (nsources (pophint--set-selector-sources (pophint--get-available-sources nwindow))))
+                (setf (pophint--condition-window cond) nwindow)
+                ;; (when (and (> (length nsources) 0)
+                ;;            (not (member source nsources)))
+                ;;   (setf (pophint--condition-source cond) nil))
+                (setf (pophint--condition-sources cond) nsources)
+                (pophint--let-user-select cond)))
+             ;; Switch source
+             ((and (string= key pophint:switch-source-char)
+                   (not not-switch-source))
+              (pophint--debug "user inputed switch source")
+              (if (eq pophint:select-source-method 'use-popup-char)
+                  (pophint--event-loop hints cond "" t)
+                (let* ((nsource (loop for i from 1 to (length sources)
+                                      for currsrc = (nth (- i 1) sources)
+                                      if (equal source currsrc)
+                                      return (cond ((= i (length sources)) (nth 0 sources))
+                                                   (t                      (nth i sources)))
+                                      finally return (nth 0 sources))))
+                  (pophint--deletes hints)
+                  (setf (pophint--condition-source cond) nsource)
+                  (pophint--let-user-select cond))))
+             ;; Select source
+             ((and (or (and (string-match key pophint:select-source-chars)
+                            (eq pophint:select-source-method 'use-source-char))
+                       (and (string-match key pophint:popup-chars)
+                            (eq pophint:select-source-method 'use-popup-char)
+                            source-selection))
+                   (not not-switch-source))
+              (pophint--debug "user inputed select source char")
+              (when (not source-selection) (setq inputed ""))
+              (let* ((currinputed (concat inputed (upcase key)))
+                     (nsource (loop for src in sources
+                                    if (string= currinputed (or (assoc-default 'selector src) ""))
+                                    return src)))
+                (if (not nsource)
+                    (pophint--event-loop hints cond currinputed t)
+                  (pophint--deletes hints)
+                  (setf (pophint--condition-source cond) nsource)
+                  (pophint--let-user-select cond))))
+             ;; Warning
+             (t
+              (pophint--debug "user inputed worthless char")
+              (pophint--show-message "Inputed not hint char.")
+              (sleep-for 2)
+              (pophint--event-loop hints cond inputed source-selection))))
+           ;; Pass inputed command
+           ((commandp binding)
+            (pophint--debug "user inputed command : %s" binding)
+            (pophint--deletes hints)
+            (call-interactively binding)
+            nil)
+           ;; Abort
+           (t
+            (pophint--deletes hints))))))
+    (yaxception:catch 'error e
+      (pophint--deletes hints)
+      (setq pophint--last-hints nil)
+      (pophint--error "failed event loop : %s\n%s" (yaxception:get-text e) (yaxception:get-stack-trace-string e))
+      (yaxception:throw e))))
+
+
+;;;;;;;;;;;;;;;;;;;;
+;; For pos-tip.el
+
+(defun pophint--pos-tip-show (string)
+  (copy-face 'pophint:pos-tip-face 'pos-tip-temp)
+  (when (eq (face-attribute 'pos-tip-temp :font) 'unspecified)
+    (set-face-font 'pos-tip-temp (frame-parameter nil 'font)))
+  (set-face-bold-p 'pos-tip-temp (face-bold-p 'pophint:pos-tip-face))
+  (multiple-value-bind (wnd rightpt bottompt) (pophint--get-pos-tip-location)
+    (let* ((max-width (pos-tip-x-display-width))
+           (max-height (pos-tip-x-display-height))
+           (tipsize (pophint--get-pos-tip-size string))
+           (tipsize (cond ((or (> (car tipsize) max-width)
+                               (> (cdr tipsize) max-height))
+                           (setq string (pos-tip-truncate-string string max-width max-height))
+                           (pophint--get-pos-tip-size string))
+                          (t
+                           tipsize)))
+           (tipwidth (car tipsize))
+           (tipheight (cdr tipsize))
+           (dx (- rightpt tipwidth 10))
+           (dy (- bottompt tipheight)))
+      (pos-tip-show-no-propertize
+       string 'pos-tip-temp 1 wnd 300 tipwidth tipheight nil dx dy))))
+
+(defun pophint--get-pos-tip-size (string)
+  "Return (WIDTH . HEIGHT) of the tip of pos-tip.el generated from STRING."
+  (let* ((w-h (pos-tip-string-width-height string))
+         (width (pos-tip-tooltip-width (car w-h) (frame-char-width)))
+         (height (pos-tip-tooltip-height (cdr w-h) (frame-char-height))))
+    (cons width height)))
+
+(defun pophint--get-pos-tip-location ()
+  "Return (WND RIGHT BOTTOM) as the location to show the tip of pos-tip.el."
+  (let ((leftpt 0)
+        (toppt 0)
+        wnd rightpt bottompt)
+    (dolist (w (window-list))
+      (let* ((edges (when (not (minibufferp (window-buffer w)))
+                      (window-pixel-edges w)))
+             (currleftpt (or (nth 0 edges) -1))
+             (currtoppt (or (nth 1 edges) -1)))
+        (when (and (= currleftpt 0)
+                   (= currtoppt 0))
+          (setq wnd w))
+        (when (or (not rightpt)
+                  (> currleftpt leftpt))
+          (setq rightpt (nth 2 edges))
+          (setq leftpt currleftpt))
+        (when (or (not bottompt)
+                  (> currtoppt toppt))
+          (setq bottompt (nth 3 edges))
+          (setq toppt currtoppt))))
+    (list wnd rightpt bottompt)))
+
+
+;;;;;;;;;;;;;;;;;;;
+;; User Function
 
 (defmacro* pophint:defsource (&key name description source)
   "Define the variable and command to pop-up hint-tip by using given source.
@@ -377,7 +954,7 @@ Example:
        (if (or (not (stringp key))
                (string= key "")
                (not (= (length key) 1)))
-           (message "[PopHint] Failed pophint:defaction : key is not one character.")
+           (pophint--show-message "Failed pophint:defaction : key is not one character.")
          (puthash key
                   (make-pophint:action :name name :action action)
                   pophint--action-hash)
@@ -388,6 +965,26 @@ Example:
            (let ((act (gethash ,key pophint--action-hash)))
              (pophint:do-flexibly :action (pophint:action-action act)
                                   :action-name (pophint:action-name act))))))))
+
+(defmacro pophint:defsituation (situation)
+  "Define the command to pop-up hint-tip in SITUATION.
+
+Arguments:
+SITUATION is symbol. It's used for finding the sources that is dedicated
+for SITUATION from `pophint:dedicated-sources'.
+
+Example:
+ (pophint:defsituation e2wm)
+"
+  (declare (indent 0))
+  (let* ((symnm (downcase (replace-regexp-in-string " +" "-" (symbol-name situation))))
+         (fnc-sym (intern (format "pophint:do-situationally-%s" symnm)))
+         (fnc-doc (format "Do `pophint:do-situationally' for '%s'." symnm)))
+    `(progn
+       (defun ,fnc-sym ()
+         ,fnc-doc
+         (interactive)
+         (pophint:do-situationally ',situation)))))
 
 (defmacro pophint:set-allwindow-command (func)
   "Define advice to FUNC for doing pop-up at all windows.
@@ -406,144 +1003,13 @@ FUNC is symbol not quoted. e.g. (pophint:set-not-allwindow-command pophint:do-fl
        ad-do-it)))
 
 (defun pophint:get-current-direction ()
-  "Get current direction of searching next point for pop-up hint-tip.
+  "Get current direction of searching next point for pop-up hint-tip."
+  (when (pophint--condition-p pophint--last-condition)
+    (pophint--condition-direction pophint--last-condition)))
 
-It return 'around or 'forward or 'backward."
-  pophint--current-direction)
 
-;;;###autoload
-(defun pophint:toggle-use-pos-tip ()
-  "Toggle the status of `pophint:use-pos-tip'."
-  (interactive)
-  (setq pophint:use-pos-tip (not pophint:use-pos-tip)))
-
-;;;###autoload
-(defun pophint:redo ()
-  "Redo last pop-up hint-tip using any sources."
-  (interactive)
-  (pophint:do :source pophint--last-source
-              :sources pophint--last-sources
-              :action pophint--last-action
-              :action-name pophint--last-action-name
-              :window pophint--last-window))
-
-;;;###autoload
-(defun pophint:do-situationally (situation)
-  "Do pop-up hint-tip for SITUATION.
-
-SITUATION is symbol used for finding active sources from `pophint:dedicated-sources'."
-  (interactive
-   (list (intern
-          (completing-read "Select situation: "
-                           (loop with ret = nil
-                                 for src in (pophint--expand-sources pophint:dedicated-sources)
-                                 for dedicated = (assoc-default 'dedicated src)
-                                 if dedicated
-                                 do (cond ((symbolp dedicated) (pushnew dedicated ret))
-                                          ((listp dedicated)   (loop for e in dedicated do (pushnew e ret))))
-                                 finally return ret)
-                           nil t nil '()))))
-  (yaxception:$
-    (yaxception:try
-      (pophint--trace "start do situationally. situation[%s]" situation)
-      (pophint--delete-last-hints)
-      (let* ((sources (loop for src in (pophint--expand-sources pophint:dedicated-sources)
-                            for dedicated = (assoc-default 'dedicated src)
-                            if (or (and dedicated
-                                        (symbolp dedicated)
-                                        (eq dedicated situation))
-                                   (and dedicated
-                                        (listp dedicated)
-                                        (memq situation dedicated)))
-                            collect src))
-             (current-input-method nil)
-             (not-highlight (loop for src in sources
-                                  always (and (assq 'highlight src)
-                                              (not (assoc-default 'highlight src)))))
-             (actionh (make-hash-table :test 'equal))
-             (hints (loop for wnd in (window-list nil nil)
-                          append (with-selected-window wnd
-                                    (loop with buff = (window-buffer)
-                                          for src in sources
-                                          for chker = (assoc-default 'activebufferp src)
-                                          if (and (functionp chker)
-                                                  (funcall chker buff))
-                                          return (progn
-                                                   (puthash (buffer-name buff) (assoc-default 'action src) actionh)
-                                                   (pophint--get-hints :source src
-                                                                       :direction 'around
-                                                                       :window wnd))))))
-             (hint (progn (pophint--show-tip hints not-highlight)
-                          (pophint--event-loop :hints hints
-                                               :action-name (upcase (symbol-name situation))
-                                               :direction 'around
-                                               :not-switch-direction t
-                                               :not-switch-window t)))
-             (action (or (when hint
-                           (gethash (buffer-name (window-buffer (pophint:hint-window hint))) actionh))
-                         pophint--default-action)))
-        (pophint--do-action hint action)))
-    (yaxception:catch 'error e
-      (message "[PopHint] Failed pophint:do situationally : %s" (yaxception:get-text e))
-      (pophint--fatal "failed do situationally : %s\n%s"
-                      (yaxception:get-text e) (yaxception:get-stack-trace-string e))
-      (pophint--log-open-log-if-debug))))
-
-;;;###autoload
-(defun pophint:do-interactively ()
-  "Do pop-up hint-tip asking about what to do after select hint-tip."
-  (interactive)
-  (yaxception:$
-    (yaxception:try
-      (let* ((key (pophint--menu-read-key-sequence (pophint--get-read-prompt-interactively)))
-             (gbinding (lookup-key (current-global-map) key))
-             (binding (or (when (current-local-map)
-                            (lookup-key (current-local-map) key))
-                          gbinding)))
-        (cond ((or (null key) (zerop (length key)))
-               (pophint--trace "inputed null. key:[%s] gbinding:[%s] binding:[%s]" key gbinding binding))
-              ((eq gbinding 'keyboard-quit)
-               (pophint--trace "inputed quit. key:[%s] gbinding:[%s] binding:[%s]" key gbinding binding)
-               (message "[PopHint] Quit do-interactively."))
-              ((eq gbinding 'newline)
-               (pophint--trace "inputed ret. key:[%s] gbinding:[%s] binding:[%s]" key gbinding binding)
-               (pophint:do-flexibly))
-              ((eq gbinding 'self-insert-command)
-               (let* ((action (gethash key pophint--action-hash)))
-                 (cond ((pophint:action-p action)
-                        (pophint:do-flexibly :action (pophint:action-action action)
-                                             :action-name (pophint:action-name action)))
-                       (t
-                        (message "[PopHint] Inputed not start key of action.")
-                        (sleep-for 2)
-                        (pophint:do-interactively)))))
-              ((commandp binding)
-               (pophint--trace "inputed cmd. key:[%s] gbinding:[%s] binding:[%s]" key gbinding binding)
-               (call-interactively binding)
-               (pophint:do-interactively))
-              (t
-               (pophint--trace "inputed else. key:[%s] gbinding:[%s] binding:[%s]" key gbinding binding)))))
-    (yaxception:catch 'error e
-      (message "[PopHint] Failed pophint:do-interactively : %s" (yaxception:get-text e))
-      (pophint--fatal "failed do-interactively : %s\n%s" (yaxception:get-text e) (yaxception:get-stack-trace-string e))
-      (pophint--log-open-log-if-debug))))
-
-;;;###autoload
-(defun* pophint:do-flexibly (&key action action-name window)
-  "Do pop-up hint-tip using source in `pophint:sources'.
-
-For detail, see `pophint:do'."
-  (interactive)
-  (pophint--debug "start do flexibly. window:[%s] action-name:[%s]\naction:%s" window action-name action)
-  (let* ((window (or window pophint--last-window))
-         (sources (pophint--get-available-sources window))
-         (source (when (member pophint--last-source sources)
-                   pophint--last-source)))
-    (pophint:do :source source
-                :sources sources
-                :action action
-                :action-name action-name
-                :window window)))
+;;;;;;;;;;;;;;;;;;
+;; User Command
 
 ;;;###autoload
 (defun* pophint:do (&key source
@@ -568,7 +1034,7 @@ DIRECTION is symbol. The allowed value is the following.
  - forward  ... seek the pop-up point moving forward until `pophint:popup-max-tips'.
  - backward ... seek the pop-up point moving backward until `pophint:popup-max-tips'.
  - around   ... seek the pop-up point moving both until half of `pophint:popup-max-tips'.
- If nil, enable switching DIRECTION when pop-up hint. The default is `pophint--current-direction'.
+ If nil, enable switching DIRECTION when pop-up hint.
 NOT-HIGHLIGHT is t or nil. If non-nil, don't highlight matched text when pop-up hint.
 WINDOW is window. find next point of pop-up in the window. If nil, its value is `selected-window'.
 NOT-SWITCH-WINDOW is t or nil. If non-nil, disable switching window when select shown hint.
@@ -578,583 +1044,185 @@ USE-POS-TIP is t or nil. If omitted, inherit `pophint:use-pos-tip'."
   (yaxception:$
     (yaxception:try
       (pophint--debug
-       "start do. direction:[%s] not-highlight:[%s] window:[%s] not-switch-window:[%s] allwindow:[%s] action-name:[%s]\naction:%s\nsource:%s\nsources:%s"
+       "start do.\ndirection:%s\nnot-highlight:%s\nwindow:%s\nnot-switch-window:%s\nallwindow:%s\naction-name:%s\naction:%s\nsource:%s\nsources:%s"
        direction not-highlight window not-switch-window allwindow action-name action source sources)
-      (pophint--delete-last-hints)
-      (when (not pophint:switch-direction-p)
-        (setq pophint--current-direction 'around))
-      (setq pophint--current-highlight (not not-highlight))
-      (let* ((sources (pophint--expand-sources sources))
-             (source (or (pophint--expand-source source)
-                         (when (> (length sources) 0) (nth 0 sources))
-                         pophint--default-source))
-             (current-input-method nil)
-             (currdirection (or direction
-                                pophint--current-direction))
-             (not-switch-direction (or (when direction t)
-                                       (not pophint:switch-direction-p)))
-             (not-highlight (or not-highlight
-                                (and (assq 'highlight source)
-                                     (not (assoc-default 'highlight source)))))
-             (not-switch-window (or not-switch-window
-                                    (one-window-p)))
-             (allwindow (and (or allwindow pophint--enable-allwindow-p pophint:do-allwindow-p)
-                             (not pophint--disable-allwindow-p)
-                             (not window)
-                             (not not-switch-window)))
-             (pophint:use-pos-tip (if (eq use-pos-tip 'global) pophint:use-pos-tip use-pos-tip))
-             (hints (pophint--get-hints :source source
-                                        :direction currdirection
-                                        :window window
-                                        :allwindow allwindow))
-             (hint (progn (pophint--show-tip hints not-highlight)
-                          (pophint--event-loop :hints hints
-                                               :source source
-                                               :sources sources
+      (let* ((current-input-method nil)
+             (allwindow-p (and (or allwindow
+                                   pophint--enable-allwindow-p
+                                   pophint:do-allwindow-p)
+                               (not pophint--disable-allwindow-p)
+                               (not window)))
+             (c (setq pophint--last-condition
+                      (make-pophint--condition :source (pophint--compile-source source)
+                                               :sources (pophint--set-selector-sources (pophint--compile-sources sources))
                                                :action action
-                                               :action-name (or action-name "Go/SrcAct")
-                                               :not-highlight not-highlight
-                                               :direction currdirection
-                                               :not-switch-direction not-switch-direction
-                                               :not-switch-window not-switch-window
+                                               :action-name (or action-name pophint--default-action-name)
+                                               :direction (or direction
+                                                              (when (not pophint:switch-direction-p) 'around)
+                                                              (pophint:get-current-direction)
+                                                              'around)
                                                :window window
-                                               :allwindow allwindow)))
-             (action (or action
-                         (assoc-default 'action source)
-                         pophint--default-action)))
-        (when (and (pophint:hint-p hint)
-                   (> (length sources) 0))
-          (setq pophint--last-source source)
-          (setq pophint--last-sources sources)
-          (setq pophint--last-action action)
-          (setq pophint--last-action-name action-name)
-          (setq pophint--last-window window))
-        (pophint--do-action hint action)))
+                                               :allwindow allwindow-p
+                                               :use-pos-tip (if (eq use-pos-tip 'global) pophint:use-pos-tip use-pos-tip)
+                                               :not-highlight not-highlight
+                                               :not-switch-direction (or (when direction t)
+                                                                         (not pophint:switch-direction-p))
+                                               :not-switch-window (or not-switch-window (one-window-p) allwindow-p))))
+             (hint (pophint--let-user-select c)))
+        (pophint--do-action hint (pophint--current-action c))))
     (yaxception:catch 'error e
-      (message "[PopHint] Failed pophint:do : %s" (yaxception:get-text e))
+      (pophint--show-message "Failed pophint:do : %s" (yaxception:get-text e))
       (pophint--fatal "failed do : %s\n%s" (yaxception:get-text e) (yaxception:get-stack-trace-string e))
       (pophint--log-open-log-if-debug))))
 
+;;;###autoload
+(defun* pophint:do-flexibly (&key action action-name window)
+  "Do pop-up hint-tip using source in `pophint:sources'.
 
-(defun pophint--expand-sources (sources)
-  (loop for s in sources
-        collect (pophint--expand-source s)))
+For detail, see `pophint:do'."
+  (interactive)
+  (pophint--debug "start do flexibly. window:[%s] action-name:[%s]\naction:%s" window action-name action)
+  (let* ((lastc pophint--last-condition)
+         (window (or window
+                     (when (pophint--condition-p lastc)
+                       (pophint--condition-window lastc))))
+         (sources (pophint--get-available-sources window))
+         (source (when (and (pophint--condition-p lastc)
+                            (member (pophint--condition-source lastc) sources))
+                   (pophint--condition-source lastc))))
+    (pophint:do :source source
+                :sources sources
+                :action action
+                :action-name action-name
+                :window window)))
 
-(defun pophint--expand-source (source)
-  (cond ((symbolp source)
-         (symbol-value source))
-        ((listp source)
-         source)))
-
-(defsubst pophint--get-max-tips (source direction)
-  (let ((ret (or (assoc-default 'limit source)
-                 pophint:popup-max-tips)))
-    (when (and (eq direction 'around)
-               ret)
-      (setq ret (/ ret 2)))
-    ret))
-
-(defsubst pophint--get-hint-regexp (source)
-  (let ((re (or (assoc-default 'regexp source)
-                pophint--default-search-regexp)))
-    (cond ((stringp re)   re)
-          ((boundp re)    (symbol-value re))
-          ((functionp re) (funcall re))
-          (t              (eval re)))))
-
-(defsubst pophint--get-search-functions (srcmtd direction)
-  (cond ((functionp srcmtd)
-         (list srcmtd))
-        ((and (listp srcmtd)
-              (> (length srcmtd) 0))
-         srcmtd)
-        (t
-         (case direction
-           (forward  '(re-search-forward))
-           (backward '(re-search-backward))
-           (around   '(re-search-forward re-search-backward))))))
-
-(defsubst pophint--get-popup-text (idx)
-  (if (or (not (stringp pophint:popup-chars))
-          (string= pophint:popup-chars ""))
-      ""
-    (let* ((basei (length pophint:popup-chars)))
-      (loop with ret = ""
-            with n = idx
-            for i = (/ n basei)
-            for r = (- n (* basei i))
-            until (= i 0)
-            do (setq n i)
-            do (setq ret (concat (substring pophint:popup-chars r (+ r 1)) ret))
-            finally return (concat (substring pophint:popup-chars r (+ r 1)) ret)))))
-
-(defsubst pophint--get-popup-text-list (hint-count)
-  (loop with tiptexth = (make-hash-table :test 'equal)
-        with idx = 0
-        with tip-count = 0
-        while (< tip-count hint-count)
-        for tiptext = (upcase (pophint--get-popup-text idx))
-        do (incf idx)
-        do (progn (puthash tiptext t tiptexth)
-                  (incf tip-count))
-        do (let ((chktext (substring tiptext 0 (- (length tiptext) 1))))
-             (when (gethash chktext tiptexth)
-               (remhash chktext tiptexth)
-               (decf tip-count)))
-        finally return (loop for k being the hash-keys in tiptexth collect k)))
-      
-(defun pophint--show-tip (hints not-highlight)
-  (pophint--trace "start show hint tip. count:[%s] not-highlight:[%s]" (length hints) not-highlight)
-  (loop with orgwnd = (selected-window)
-        with wnd = orgwnd
-        with tiptexts = (pophint--get-popup-text-list (length hints))
-        for hint in hints
-        for tiptext = (or (pop tiptexts) "")
-        for nextwnd = (pophint:hint-window hint)
-        if (string= tiptext "")
-        return nil
-        if (not (eq wnd nextwnd))
-        do (progn (select-window nextwnd t)
-                  (setq wnd (selected-window)))
-        do (let ((tip (popup-create (pophint:hint-startpt hint)
-                                    (string-width tiptext)
-                                    1
-                                    :around nil
-                                    :margin-left 0
-                                    :margin-right 0
-                                    :face 'pophint:tip-face))
-                 (ov (when (not not-highlight)
-                       (make-overlay (pophint:hint-startpt hint)
-                                     (pophint:hint-endpt hint)))))
-             (when ov
-               (overlay-put ov 'window (selected-window))
-               (overlay-put ov 'face 'pophint:match-face)
-               (setf (pophint:hint-overlay hint) ov))
-             (setf (pophint:hint-popup hint) tip)
-             (popup-set-list tip (list tiptext))
-             (popup-draw tip))
-        finally do (select-window orgwnd t)))
-
-(defun* pophint--get-hints (&key source direction window allwindow)
-  (pophint--debug "start get hints direction:[%s] window:[%s] allwindow:[%s]\nsource:%s"
-                  direction window allwindow source)
-  (let ((hints))
-    (yaxception:$
-      (yaxception:try
-        (let* ((init (pophint--expand-function-symbol (assoc-default 'init source)))
-               (requires (or (assoc-default 'requires source)
-                             pophint:default-require-length))
-               (re (pophint--get-hint-regexp source))
-               (srcmtd (pophint--expand-function-symbol (assoc-default 'method source)))
-               (srchfuncs (pophint--get-search-functions srcmtd direction))
-               (maxtips (pophint--get-max-tips source direction)))
-          (dolist (wnd (or (when allwindow (window-list nil t))
-                           (and (windowp window) (window-live-p window) (list window))
-                           (list (nth 0 (get-buffer-window-list)))))
-            (with-selected-window wnd
-              (save-restriction
-                (yaxception:$
-                  (yaxception:try (narrow-to-region (window-start) (window-end)))
-                  (yaxception:catch 'error e
-                    (pophint--warn "failed narrow region : window:%s startpt:%s endpt:%s" wnd (window-start) (window-end))))
-                (dolist (srchfnc srchfuncs)
-                  (save-excursion
-                    (loop initially (progn
-                                      (pophint--trace
-                                       "start searching hint. require:[%s] max:[%s] buffer:[%s] point:[%s]\nregexp: %s\nfunc: %s"
-                                       requires maxtips (current-buffer) (point) re srchfnc)
-                                      (when (functionp init) (funcall init)))
-                          with cnt = 0
-                          with orghint
-                          while (and (yaxception:$
-                                       (yaxception:try
-                                         (cond (srcmtd (pophint:hint-p (setq orghint (funcall srchfnc))))
-                                               (t      (funcall srchfnc re nil t))))
-                                       (yaxception:catch 'error e
-                                         (pophint--error "failed seek next popup point : %s\n%s"
-                                                         (yaxception:get-text e) (yaxception:get-stack-trace-string e))))
-                                     (or (not maxtips)
-                                         (< cnt maxtips)))
-                          for hint = (or orghint
-                                         (make-pophint:hint :startpt (or (match-beginning 1) (match-beginning 0))
-                                                            :endpt (or (match-end 1) (match-end 0))
-                                                            :value (or (when (match-beginning 1) (match-string-no-properties 1))
-                                                                       (match-string-no-properties 0))))
-                          do (setf (pophint:hint-window hint) (selected-window))
-                          if (and (>= (length (pophint:hint-value hint)) requires)
-                                  (not (invisible-p (pophint:hint-startpt hint))))
-                          do (progn (pophint--trace "found hint. text:[%s] startpt:[%s] endpt:[%s]"
-                                                    (pophint:hint-value hint) (pophint:hint-startpt hint) (pophint:hint-endpt hint))
-                                    (incf cnt)
-                                    (setq hints (append hints (list hint)))))))))))
-        hints)
-      (yaxception:catch 'error e
-        (pophint--deletes hints)
-        (message "[PopHint] Failed pophint:do : %s" (yaxception:get-text e))
-        (pophint--error "failed get hints : %s\n%s" (yaxception:get-text e) (yaxception:get-stack-trace-string e))
-        (pophint--log-open-log-if-debug)))))
-
-(defun* pophint--event-loop (&key hints
-                                  (inputed "")
-                                  source
-                                  sources
-                                  action
-                                  action-name
-                                  not-highlight
-                                  direction
-                                  not-switch-direction
-                                  not-switch-window
-                                  window
-                                  allwindow)
+;;;###autoload
+(defun pophint:do-interactively ()
+  "Do pop-up hint-tip asking about what to do after select hint-tip."
+  (interactive)
   (yaxception:$
     (yaxception:try
-      (pophint--debug
-       "start event loop. hints:[%s] inputed:[%s] not-highlight:[%s] not-switch-direction:[%s] not-switch-window:[%s] window:[%s] allwindow:[%s] action-name:[%s]\naction:%s\nsource:%s\nsources:%s"
-       (length hints) inputed not-highlight not-switch-direction not-switch-window window allwindow action-name action source sources)
-      (if (and (= (length hints) 1)
-               (not (string= inputed "")))
-          (pop hints)
-        (let* ((not-switch-source (or (not (listp sources))
-                                      (< (length sources) 2)))
-               (key (progn
-                      (setq pophint--last-hints hints)
-                      (pophint--menu-read-key-sequence 
-                       (pophint--get-read-prompt :count (length hints)
-                                                 :actdesc action-name
-                                                 :source source
-                                                 :sources sources
-                                                 :not-switch-direction not-switch-direction
-                                                 :not-switch-source not-switch-source
-                                                 :not-switch-window (or not-switch-window allwindow)))))
-               (gbinding (progn (pophint--debug "got input key")
-                                (lookup-key (current-global-map) key)))
-               (binding (or (when (current-local-map)
-                              (lookup-key (current-local-map) key))
-                            gbinding)))
-          (setq pophint--last-hints nil)
-          (cond ((or (null key) (zerop (length key)))
-                 (pophint--trace "inputed null. key:[%s] gbinding:[%s] binding:[%s]" key gbinding binding)
-                 (pophint--deletes hints))
-                ((eq gbinding 'keyboard-quit)
-                 (pophint--trace "inputed quit. key:[%s] gbinding:[%s] binding:[%s]" key gbinding binding)
-                 (pophint--deletes hints)
-                 (keyboard-quit)
-                 nil)
-                ((eq gbinding 'newline)
-                 (pophint--trace "inputed ret. key:[%s] gbinding:[%s] binding:[%s]" key gbinding binding)
-                 (let* ((hint (when (not (string= inputed ""))
-                                (pop hints))))
-                   (pophint--deletes hints)
-                   hint))
-                ((or (eq gbinding 'backward-delete-char-untabify)
-                     (eq gbinding 'delete-backward-char))
-                 (pophint--trace "inputed del. key:[%s] gbinding:[%s] binding:[%s]" key gbinding binding)
-                 (pophint--deletes hints)
-                 (pophint:do :source source
-                             :sources sources
-                             :action action
-                             :action-name action-name
-                             :direction (when not-switch-direction direction)
-                             :not-highlight (not pophint--current-highlight)
-                             :window window
-                             :not-switch-window not-switch-window
-                             :allwindow allwindow)
-                 nil)
-                ((eq gbinding 'self-insert-command)
-                 (cond ((string-match key pophint:popup-chars)
-                        (pophint--trace "inputed hintchar. key:[%s] gbinding:[%s] binding:[%s]" key gbinding binding)
-                        (pophint--event-loop :hints (loop for hint in hints
-                                                          for tip = (pophint:hint-popup hint)
-                                                          for tiptextlist = (when (popup-p tip) (popup-list tip))
-                                                          for tiptext = (or (when tiptextlist (nth 0 tiptextlist))
-                                                                            "")
-                                                          if (and (string-match (concat "\\`" inputed (upcase key)) tiptext)
-                                                                  (popup-live-p tip))
-                                                          collect hint
-                                                          else
-                                                          do (pophint--delete hint))
-                                             :inputed (concat inputed (upcase key))
-                                             :source source
-                                             :sources sources
-                                             :action action
-                                             :action-name action-name
-                                             :not-highlight not-highlight
-                                             :direction direction
-                                             :not-switch-direction not-switch-direction
-                                             :not-switch-window not-switch-window
-                                             :window window
-                                             :allwindow allwindow))
-                       ((and (string= key pophint:switch-direction-char)
-                             (not not-switch-direction))
-                        (pophint--trace "inputed switch direction. key:[%s] gbinding:[%s] binding:[%s]" key gbinding binding)
-                        (pophint--deletes hints)
-                        (setq pophint--current-direction (case pophint--current-direction
-                                                           (forward 'backward)
-                                                           (backward 'around)
-                                                           (around 'forward)
-                                                           (t 'around)))
-                        (pophint:do :source source
-                                    :sources sources
-                                    :action action
-                                    :action-name action-name
-                                    :not-highlight (not pophint--current-highlight)
-                                    :window window
-                                    :not-switch-window not-switch-window
-                                    :allwindow allwindow)
-                        nil)
-                       ((and (string= key pophint:switch-source-char)
-                             (not not-switch-source))
-                        (pophint--trace "inputed switch source. key:[%s] gbinding:[%s] binding:[%s]" key gbinding binding)
-                        (pophint--deletes hints)
-                        (pophint:do :source (loop for i from 1 to (length sources)
-                                                  for currsrc = (nth (- i 1) sources)
-                                                  if (equal source currsrc)
-                                                  return (cond ((= i (length sources)) (nth 0 sources))
-                                                               (t                      (nth i sources)))
-                                                  finally return (nth 0 sources))
-                                    :sources sources
-                                    :action action
-                                    :action-name action-name
-                                    :not-highlight (not pophint--current-highlight)
-                                    :direction (when not-switch-direction direction)
-                                    :window window
-                                    :not-switch-window not-switch-window
-                                    :allwindow allwindow))
-                       ((and (string= key pophint:switch-window-char)
-                             (not not-switch-window)
-                             (not allwindow))
-                        (pophint--trace "inputed switch window. key:[%s] gbinding:[%s] binding:[%s]" key gbinding binding)
-                        (pophint--deletes hints)
-                        (let* ((nwindow (with-selected-window (or (and (windowp window) (window-live-p window) window)
-                                                                  (get-buffer-window))
-                                          (next-window)))
-                               (nsources (pophint--get-available-sources nwindow)))
-                          (pophint:do :source (or (when (= (length sources) 0) source)
-                                                  (when (member source nsources) source))
-                                      :sources (when (not not-switch-source) nsources)
-                                      :action action
-                                      :action-name action-name
-                                      :not-highlight (not pophint--current-highlight)
-                                      :direction (when not-switch-direction direction)
-                                      :window nwindow))
-                        nil)
+      (let* ((key (pophint--menu-read-key-sequence (pophint--make-prompt-interactively)
+                                                   pophint:use-pos-tip))
+             (gbinding (lookup-key (current-global-map) key))
+             (binding (or (when (current-local-map)
+                            (lookup-key (current-local-map) key))
+                          gbinding)))
+        (pophint--trace "got user input. key:[%s] gbinding:[%s] binding:[%s]" key gbinding binding)
+        (cond ((or (null key) (zerop (length key)))
+               (pophint--warn "can't get user input"))
+              ((eq gbinding 'keyboard-quit)
+               (pophint--debug "user inputed keyboard-quit")
+               (pophint--show-message "Quit do-interactively."))
+              ((eq gbinding 'newline)
+               (pophint--debug "user inputed newline")
+               (pophint:do-flexibly))
+              ((eq gbinding 'self-insert-command)
+               (let* ((action (gethash key pophint--action-hash)))
+                 (cond ((pophint:action-p action)
+                        (pophint:do-flexibly :action (pophint:action-action action)
+                                             :action-name (pophint:action-name action)))
                        (t
-                        (pophint--trace "inputed not hintchar. key:[%s] gbinding:[%s] binding:[%s]" key gbinding binding)
-                        (message "[PopHint] Inputed not hint char.")
+                        (pophint--show-message "Inputed not start key of action.")
                         (sleep-for 2)
-                        (pophint--event-loop :hints hints
-                                             :inputed inputed
-                                             :source source
-                                             :sources sources
-                                             :action action
-                                             :action-name action-name
-                                             :not-highlight not-highlight
-                                             :direction direction
-                                             :not-switch-direction not-switch-direction
-                                             :not-switch-window not-switch-window
-                                             :window window
-                                             :allwindow allwindow))))
-                ((commandp binding)
-                 (pophint--trace "inputed cmd. key:[%s] gbinding:[%s] binding:[%s]" key gbinding binding)
-                 (pophint--deletes hints)
-                 (call-interactively binding)
-                 nil)
-                (t
-                 (pophint--trace "inputed else. key:[%s] gbinding:[%s] binding:[%s]" key gbinding binding)
-                 (pophint--deletes hints))))))
+                        (pophint:do-interactively)))))
+              ((commandp binding)
+               (pophint--debug "user inputed command : %s" binding)
+               (call-interactively binding)
+               (pophint:do-interactively)))))
     (yaxception:catch 'error e
-      (pophint--deletes hints)
-      (message "[PopHint] Failed pophint:do : %s" (yaxception:get-text e))
-      (pophint--error "failed event loop : %s\n%s" (yaxception:get-text e) (yaxception:get-stack-trace-string e))
+      (pophint--show-message "Failed pophint:do-interactively : %s" (yaxception:get-text e))
+      (pophint--fatal "failed do-interactively : %s\n%s" (yaxception:get-text e) (yaxception:get-stack-trace-string e))
       (pophint--log-open-log-if-debug))))
 
-(defun pophint--menu-read-key-sequence (prompt &optional timeout)
-  ;; Coding by referring to popup-menu-read-key-sequence
-  (catch 'timeout
-    (let ((timer (and timeout
-                      (run-with-timer timeout nil
-                                      (lambda ()
-                                        (if (zerop (length (this-command-keys)))
-                                            (throw 'timeout nil))))))
-          (old-global-map (current-global-map))
-          (temp-global-map (make-sparse-keymap))
-          (overriding-terminal-local-map (make-sparse-keymap)))
-      (substitute-key-definition 'keyboard-quit 'keyboard-quit temp-global-map old-global-map)
-      (define-key temp-global-map [menu-bar] (lookup-key old-global-map [menu-bar]))
-      (define-key temp-global-map [tool-bar] (lookup-key old-global-map [tool-bar]))
-      (when (current-local-map)
-        (define-key overriding-terminal-local-map [menu-bar] (lookup-key (current-local-map) [menu-bar])))
-      (yaxception:$
-        (yaxception:try
-          (use-global-map temp-global-map)
-          (clear-this-command-keys)
-          (if (and pophint:use-pos-tip
-                   window-system
-                   (featurep 'pos-tip))
-              (progn (pophint--pos-tip-show prompt)
-                     (read-key-sequence nil))
-            (with-temp-message prompt
-              (read-key-sequence nil))))
-        (yaxception:finally
-          (use-global-map old-global-map)
-          (when timer (cancel-timer timer))
-          (when (and pophint:use-pos-tip
-                     (featurep 'pos-tip))
-            (pos-tip-hide)))))))
+;;;###autoload
+(defun pophint:do-situationally (situation)
+  "Do pop-up hint-tip for SITUATION.
 
-(defun* pophint--get-read-prompt (&key (count 0)
-                                       (actdesc "")
-                                       source
-                                       sources
-                                       not-switch-direction
-                                       not-switch-source
-                                       not-switch-window)
-  (let* ((swsrctext (or (when (not not-switch-source)
-                          (concat "'" pophint:switch-source-char "':SwitchSrc("
-                                  (mapconcat (lambda (src)
-                                               (let* ((currsrcnm (or (assoc-default 'shown source)
-                                                                     ""))
-                                                      (srcnm (or (assoc-default 'shown src)
-                                                                 "NONAME"))
-                                                      (srcnm (format "%s" srcnm)))
-                                                 (when (string= currsrcnm srcnm)
-                                                   (put-text-property 0 (length srcnm) 'face 'bold srcnm))
-                                                 srcnm))
-                                             sources
-                                             "|")
-                                  ") "))
-                        (format "Src[%s] " (or (assoc-default 'shown source)
-                                               "NONAME"))))
-         (swdirtext (or (when (not not-switch-direction)
-                          (concat "'" pophint:switch-direction-char "':SwitchDrct("
-                                  (mapconcat (lambda (d)
-                                               (let* ((s (format "%s" d)))
-                                                 (when (eq d pophint--current-direction)
-                                                   (put-text-property 0 (length s) 'face 'bold s))
-                                                 s))
-                                             '(around forward backward)
-                                             "|")
-                                  ") "))
-                        ""))
-         (swwndtext (or (when (not not-switch-window)
-                          (concat "'" pophint:switch-window-char "':SwitchWnd "))
-                        "")))
-    (format "Select ch. Hints[%s] Act[%s] %s%s%s" count actdesc swsrctext swdirtext swwndtext)))
+SITUATION is symbol used for finding active sources from `pophint:dedicated-sources'."
+  (interactive
+   (list (intern
+          (completing-read "Select situation: "
+                           (loop with ret = nil
+                                 for src in (pophint--compile-sources pophint:dedicated-sources)
+                                 for dedicated = (assoc-default 'dedicated src)
+                                 if dedicated
+                                 do (cond ((symbolp dedicated) (pushnew dedicated ret))
+                                          ((listp dedicated)   (loop for e in dedicated do (pushnew e ret))))
+                                 finally return ret)
+                           nil t nil '()))))
+  (yaxception:$
+    (yaxception:try
+      (pophint--trace "start do situationally. situation[%s]" situation)
+      (let* ((current-input-method nil)
+             (sources (loop for src in (pophint--compile-sources pophint:dedicated-sources)
+                            for dedicated = (assoc-default 'dedicated src)
+                            if (or (and dedicated
+                                        (symbolp dedicated)
+                                        (eq dedicated situation))
+                                   (and dedicated
+                                        (listp dedicated)
+                                        (memq situation dedicated)))
+                            collect src))
+             (not-highlight (loop for src in sources
+                                  always (and (assq 'highlight src)
+                                              (not (assoc-default 'highlight src)))))
+             (actionh (make-hash-table :test 'equal))
+             (cond (make-pophint--condition :sources sources
+                                            :action-name (upcase (symbol-name situation))
+                                            :direction 'around
+                                            :use-pos-tip pophint:use-pos-tip
+                                            :not-highlight not-highlight
+                                            :not-switch-direction t
+                                            :not-switch-window t
+                                            :not-switch-source t))
+             (hints (loop for wnd in (window-list nil nil)
+                          do (setf (pophint--condition-window cond) wnd)
+                          append (with-selected-window wnd
+                                    (loop with buff = (window-buffer)
+                                          for src in sources
+                                          for chker = (assoc-default 'activebufferp src)
+                                          if (and (functionp chker)
+                                                  (funcall chker buff))
+                                          return (progn
+                                                   (puthash (buffer-name buff) (assoc-default 'action src) actionh)
+                                                   (setf (pophint--condition-source cond) src)
+                                                   (pophint--get-hints cond))))))
+             (hint (progn (pophint--show-hint-tips hints not-highlight)
+                          (pophint--event-loop hints cond)))
+             (action (or (when hint
+                           (gethash (buffer-name (window-buffer (pophint:hint-window hint))) actionh))
+                         pophint--default-action)))
+        (pophint--do-action hint action)))
+    (yaxception:catch 'error e
+      (pophint--show-message "Failed pophint:do situationally : %s" (yaxception:get-text e))
+      (pophint--fatal "failed do situationally : %s\n%s"
+                      (yaxception:get-text e) (yaxception:get-stack-trace-string e))
+      (pophint--log-open-log-if-debug))))
 
-(defun pophint--get-available-sources (window)
-  (let* ((sources (with-current-buffer (or (and (windowp window)
-                                                (window-live-p window)
-                                                (window-buffer window))
-                                           (current-buffer))
-                    (pophint--expand-sources pophint:sources))))
-    (loop for src in (pophint--expand-sources pophint:global-sources)
-          do (add-to-list 'sources src t))
-    ;; (add-to-list 'sources pophint--default-source t)
-    sources))
+;;;###autoload
+(defun pophint:redo ()
+  "Redo last pop-up hint-tip using any sources."
+  (interactive)
+  (yaxception:$
+    (yaxception:try
+      (if (not (pophint--condition-p pophint--last-condition))
+          (pophint--show-message "Failed pophint:redo : Maybe pophint:do done not yet")
+        (let ((hint (pophint--let-user-select pophint--last-condition)))
+          (pophint--do-action hint (pophint--current-action pophint--last-condition)))))
+    (yaxception:catch 'error e
+      (pophint--show-message "Failed pophint:redo : %s" (yaxception:get-text e))
+      (pophint--fatal "failed redo : %s\n%s" (yaxception:get-text e) (yaxception:get-stack-trace-string e))
+      (pophint--log-open-log-if-debug))))
 
-(defun pophint--deletes (hints)
-  (pophint--trace "start delete hints. hints:[%s]" (length hints))
-  (dolist (hint hints)
-    (pophint--delete hint))
-  nil)
+;;;###autoload
+(defun pophint:toggle-use-pos-tip ()
+  "Toggle the status of `pophint:use-pos-tip'."
+  (interactive)
+  (setq pophint:use-pos-tip (not pophint:use-pos-tip)))
 
-(defun pophint--delete (hint)
-  (when (pophint:hint-p hint)
-    (let* ((tip (pophint:hint-popup hint))
-           (ov (pophint:hint-overlay hint)))
-      (when ov
-        (delete-overlay ov))
-      (when tip
-        (popup-delete tip))
-      nil)))
 
-(defun pophint--delete-last-hints ()
-  (pophint--deletes pophint--last-hints)
-  (setq pophint--last-hints nil))
-
-(defun pophint--do-action (hint action)
-  (when (pophint:hint-p hint)
-    (let* ((tip (pophint:hint-popup hint))
-           (selected (pophint:hint-value hint))
-           (action (pophint--expand-function-symbol action)))
-      (pophint--debug "start action. selected:[%s] action:%s" selected action)
-      (pophint--delete hint)
-      (when (functionp action) (funcall action hint)))))
-
-(defun pophint--get-read-prompt-interactively ()
-  (let* ((count 1)
-         (acttext (loop with ret = ""
-                        for k being the hash-keys in pophint--action-hash using (hash-values act)
-                        for desc = (pophint:action-name act)
-                        do (incf count)
-                        do (setq ret (concat ret (format "'%s':%s " k desc)))
-                        finally return ret)))
-    (format "Select ch. Actions[%s] <RET>:Default %s" count acttext)))
-
-(defun pophint--expand-function-symbol (something)
-  (cond ((functionp something)
-         something)
-        ((and (symbolp something)
-              (boundp something))
-         (symbol-value something))
-        ((listp something)
-         something)
-        (t
-         nil)))
-
-(defun pophint--pos-tip-show (string)
-  (copy-face 'pophint:pos-tip-face 'pos-tip-temp)
-  (when (eq (face-attribute 'pos-tip-temp :font) 'unspecified)
-    (set-face-font 'pos-tip-temp (frame-parameter nil 'font)))
-  (set-face-bold-p 'pos-tip-temp (face-bold-p 'pophint:pos-tip-face))
-  (multiple-value-bind (wnd rightpt bottompt) (pophint--get-pos-tip-location)
-    (let* ((max-width (pos-tip-x-display-width))
-           (max-height (pos-tip-x-display-height))
-           (tipsize (pophint--get-pos-tip-size string))
-           (tipsize (cond ((or (> (car tipsize) max-width)
-                               (> (cdr tipsize) max-height))
-                           (setq string (pos-tip-truncate-string string max-width max-height))
-                           (pophint--get-pos-tip-size string))
-                          (t
-                           tipsize)))
-           (tipwidth (car tipsize))
-           (tipheight (cdr tipsize))
-           (dx (- rightpt tipwidth 10))
-           (dy (- bottompt tipheight)))
-      (pos-tip-show-no-propertize
-       string 'pos-tip-temp 1 wnd 300 tipwidth tipheight nil dx dy))))
-
-(defun pophint--get-pos-tip-size (string)
-  "Return (WIDTH . HEIGHT) of the tip of pos-tip.el generated from STRING."
-  (let* ((w-h (pos-tip-string-width-height string))
-         (width (pos-tip-tooltip-width (car w-h) (frame-char-width)))
-         (height (pos-tip-tooltip-height (cdr w-h) (frame-char-height))))
-    (cons width height)))
-
-(defun pophint--get-pos-tip-location ()
-  "Return (WND RIGHT BOTTOM) as the location to show the tip of pos-tip.el."
-  (let ((leftpt 0)
-        (toppt 0)
-        wnd rightpt bottompt)
-    (dolist (w (window-list))
-      (let* ((edges (when (not (minibufferp (window-buffer w)))
-                      (window-pixel-edges w)))
-             (currleftpt (or (nth 0 edges) -1))
-             (currtoppt (or (nth 1 edges) -1)))
-        (when (and (= currleftpt 0)
-                   (= currtoppt 0))
-          (setq wnd w))
-        (when (or (not rightpt)
-                  (> currleftpt leftpt))
-          (setq rightpt (nth 2 edges))
-          (setq leftpt currleftpt))
-        (when (or (not bottompt)
-                  (> currtoppt toppt))
-          (setq bottompt (nth 3 edges))
-          (setq toppt currtoppt))))
-    (list wnd rightpt bottompt)))
-
-(defadvice keyboard-quit (before delete-pophint-last-hints activate)
+(defadvice keyboard-quit (before pophint:delete-last-hints activate)
   (pophint--delete-last-hints))
 
 
