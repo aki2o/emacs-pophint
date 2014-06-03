@@ -148,15 +148,15 @@
                                                                ((regexp . "bar") (selector . "2")))))))
   (desc "event-loop select source use-popup-char")
   (expect (mock (pophint--let-user-select
-                 (make-pophint--condition :source '((regexp . "fuga") (selector . "H"))
-                                          :sources '(((regexp . "fuga") (selector . "H"))
-                                                     ((regexp . "bar") (selector . "J"))))))
+                 (make-pophint--condition :source '((regexp . "fuga") (selector . "h"))
+                                          :sources '(((regexp . "fuga") (selector . "h"))
+                                                     ((regexp . "bar") (selector . "j"))))))
     (stub pophint--menu-read-key-sequence => (kbd "h"))
     (let ((pophint:select-source-method 'use-popup-char))
       (pophint--event-loop nil
                            (make-pophint--condition :source '((regexp . "hoge"))
-                                                    :sources '(((regexp . "fuga") (selector . "H"))
-                                                               ((regexp . "bar") (selector . "J"))))
+                                                    :sources '(((regexp . "fuga") (selector . "h"))
+                                                               ((regexp . "bar") (selector . "j"))))
                            ""
                            t)))
   (desc "event-loop some command")

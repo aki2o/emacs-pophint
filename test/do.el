@@ -35,7 +35,8 @@
                                           :action-name pophint--default-action-name
                                           :direction 'around
                                           :allwindow t
-                                          :not-switch-window t)))
+                                          :not-switch-window t
+                                          :not-switch-source t)))
     (stub pophint--event-loop => nil)
     (let ((pophint:switch-direction-p t)
           (pophint:do-allwindow-p t)

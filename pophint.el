@@ -5,7 +5,7 @@
 ;; Author: Hiroaki Otsu <ootsuhiroaki@gmail.com>
 ;; Keywords: popup
 ;; URL: https://github.com/aki2o/emacs-pophint
-;; Version: 0.8.3
+;; Version: 0.8.4
 ;; Package-Requires: ((popup "0.5.0") (log4e "0.2.0") (yaxception "0.1"))
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -241,7 +241,7 @@ If nil, it means limitless."
   :group 'pophint)
 
 (defface pophint:prompt-bind-part-face
-  '((t (:inherit font-lock-keyword-face)))
+  '((t (:inherit font-lock-keyword-face :bold t)))
   "Face for the part of bound key in prompt."
   :group 'pophint)
 
@@ -379,12 +379,13 @@ If nil, it means limitless."
             do (setq ret (concat (substring char-list r (+ r 1)) ret))
             finally return (concat (substring char-list r (+ r 1)) ret)))))
 
-(defsubst pophint--make-unique-char-strings (count char-list)
+(defsubst pophint--make-unique-char-strings (count char-list &optional not-upcase)
   (loop with reth = (make-hash-table :test 'equal)
         with idx = 0
         with currcount = 0
         while (< currcount count)
-        for currstr = (upcase (pophint--make-index-char-string idx char-list))
+        for currstr = (pophint--make-index-char-string idx char-list)
+        for currstr = (if not-upcase currstr (upcase currstr))
         do (incf idx)
         do (progn (puthash currstr t reth)
                   (incf currcount))
@@ -400,7 +401,7 @@ If nil, it means limitless."
                            (use-source-char pophint:select-source-chars)
                            (t               nil))
         with selectors = (when char-list
-                           (pophint--make-unique-char-strings (length sources) char-list))
+                           (pophint--make-unique-char-strings (length sources) char-list t))
         for src in sources
         for selector = (when selectors (pop selectors))
         do (pophint--awhen (assq 'selector src)
@@ -495,18 +496,23 @@ If nil, it means limitless."
          (not-switch-window (pophint--condition-not-switch-window cond))
          (not-switch-source (pophint--current-not-switch-source-p cond))
          (swsrctext (cond ((not not-switch-source)
-                           (format "%s:SwSrc(%s) "
-                                   (propertize (upcase pophint:switch-source-char) 'face 'pophint:prompt-bind-part-face)
+                           (format "%s%s:SwSrc(%s) "
+                                   (propertize pophint:switch-source-char 'face 'pophint:prompt-bind-part-face)
+                                   (if pophint:switch-source-reverse-char
+                                       (concat "/"
+                                               (propertize pophint:switch-source-reverse-char 'face 'pophint:prompt-bind-part-face))
+                                     "")
                                    (pophint--make-source-selection-prompt sources
                                                                           :highlight-source source)))
-                          ((loop for s in sources always (assoc-default 'dedicated source))
+                          ((loop for s in (append (list source) sources)
+                                 always (assoc-default 'dedicated s))
                            "")
                           (t
                            (format "Src[%s] " (or (assoc-default 'shown source)
                                                   "*None*")))))
          (swdirtext (cond ((not not-switch-direction)
                            (format "%s:SwDrct(%s) "
-                                   (propertize (upcase pophint:switch-direction-char) 'face 'pophint:prompt-bind-part-face)
+                                   (propertize pophint:switch-direction-char 'face 'pophint:prompt-bind-part-face)
                                    (mapconcat (lambda (d)
                                                 (let* ((s (format "%s" d)))
                                                   (if (eq d direction) (propertize s 'face 'bold) s)))
@@ -516,7 +522,7 @@ If nil, it means limitless."
                            "")))
          (swwndtext (cond ((not not-switch-window)
                            (format "%s:SwWnd "
-                                   (propertize (upcase pophint:switch-window-char) 'face 'pophint:prompt-bind-part-face)))
+                                   (propertize pophint:switch-window-char 'face 'pophint:prompt-bind-part-face)))
                           (t
                            ""))))
     (format "Select ch. Hints[%s] Act[%s] %s%s%s" hint-count actdesc swsrctext swdirtext swwndtext)))
@@ -773,7 +779,8 @@ If nil, it means limitless."
               (let* ((nwindow (with-selected-window (or (and (windowp window) (window-live-p window) window)
                                                         (get-buffer-window))
                                 (next-window)))
-                     (nsources (pophint--set-selector-sources (pophint--get-available-sources nwindow))))
+                     (nsources (when (not not-switch-source)
+                                 (pophint--set-selector-sources (pophint--get-available-sources nwindow)))))
                 (setf (pophint--condition-window cond) nwindow)
                 ;; (when (and (> (length nsources) 0)
                 ;;            (not (member source nsources)))
@@ -806,7 +813,7 @@ If nil, it means limitless."
                    (not not-switch-source))
               (pophint--debug "user inputed select source char")
               (when (not source-selection) (setq inputed ""))
-              (let* ((currinputed (concat inputed (upcase key)))
+              (let* ((currinputed (concat inputed key))
                      (nsource (loop for src in sources
                                     if (string= currinputed (or (assoc-default 'selector src) ""))
                                     return src)))
@@ -1108,7 +1115,8 @@ USE-POS-TIP is t or nil. If omitted, inherit `pophint:use-pos-tip'."
                                                :not-highlight not-highlight
                                                :not-switch-direction (or (when direction t)
                                                                          (not pophint:switch-direction-p))
-                                               :not-switch-window (or not-switch-window (one-window-p) allwindow-p))))
+                                               :not-switch-window (or not-switch-window (one-window-p) allwindow-p)
+                                               :not-switch-source (and source (not sources)))))
              (hint (pophint--let-user-select c)))
         (pophint--do-action hint (pophint--current-action c))))
     (yaxception:catch 'error e
