@@ -5,7 +5,7 @@
 ;; Author: Hiroaki Otsu <ootsuhiroaki@gmail.com>
 ;; Keywords: popup
 ;; URL: https://github.com/aki2o/emacs-pophint
-;; Version: 0.8.1
+;; Version: 0.8.2
 ;; Package-Requires: ((popup "0.5.0") (log4e "0.2.0") (yaxception "0.1"))
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -220,6 +220,11 @@ If nil, it means limitless."
     (((class color) (background light)) (:background "gray10" :foreground "white"))
     (t                                  (:background "ivory" :foreground "black")))
   "Face for the tip of pos-tip.el"
+  :group 'pophint)
+
+(defface pophint:prompt-bind-part-face
+  '((t (:inherit font-lock-keyword-face)))
+  "Face for the part of bound key in prompt."
   :group 'pophint)
 
 (defvar pophint:sources nil
@@ -455,7 +460,7 @@ If nil, it means limitless."
                  (let* ((srcnm (or (assoc-default 'shown src) "*None*"))
                         (selector (assoc-default 'selector src)))
                    (concat (if selector
-                               (concat (propertize selector 'face 'font-lock-keyword-face) ":")
+                               (concat (propertize selector 'face 'pophint:prompt-bind-part-face) ":")
                              "")
                            (if (string= hsrcnm srcnm)
                                (propertize srcnm 'face 'bold)
@@ -473,7 +478,7 @@ If nil, it means limitless."
          (not-switch-source (pophint--current-not-switch-source-p cond))
          (swsrctext (cond ((not not-switch-source)
                            (format "%s:SwSrc(%s) "
-                                   (propertize (upcase pophint:switch-source-char) 'face 'font-lock-keyword-face)
+                                   (propertize (upcase pophint:switch-source-char) 'face 'pophint:prompt-bind-part-face)
                                    (pophint--make-source-selection-prompt sources
                                                                           :highlight-source source)))
                           ((loop for s in sources always (assoc-default 'dedicated source))
@@ -483,7 +488,7 @@ If nil, it means limitless."
                                                   "*None*")))))
          (swdirtext (cond ((not not-switch-direction)
                            (format "%s:SwDrct(%s) "
-                                   (propertize (upcase pophint:switch-direction-char) 'face 'font-lock-keyword-face)
+                                   (propertize (upcase pophint:switch-direction-char) 'face 'pophint:prompt-bind-part-face)
                                    (mapconcat (lambda (d)
                                                 (let* ((s (format "%s" d)))
                                                   (if (eq d direction) (propertize s 'face 'bold) s)))
@@ -493,7 +498,7 @@ If nil, it means limitless."
                            "")))
          (swwndtext (cond ((not not-switch-window)
                            (format "%s:SwWnd "
-                                   (propertize (upcase pophint:switch-window-char) 'face 'font-lock-keyword-face)))
+                                   (propertize (upcase pophint:switch-window-char) 'face 'pophint:prompt-bind-part-face)))
                           (t
                            ""))))
     (format "Select ch. Hints[%s] Act[%s] %s%s%s" hint-count actdesc swsrctext swdirtext swwndtext)))
@@ -506,10 +511,10 @@ If nil, it means limitless."
                         do (incf count)
                         do (setq ret (concat ret
                                              (format "%s:%s "
-                                                     (propertize k 'face 'font-lock-keyword-face)
+                                                     (propertize k 'face 'pophint:prompt-bind-part-face)
                                                      desc)))
                         finally return ret))
-         (defact (propertize "<RET>" 'face 'font-lock-keyword-face)))
+         (defact (propertize "<RET>" 'face 'pophint:prompt-bind-part-face)))
     (format "Select ch. Actions[%s] %s:Default %s" count defact acttext)))
 
 
