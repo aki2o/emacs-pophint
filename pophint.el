@@ -5,7 +5,7 @@
 ;; Author: Hiroaki Otsu <ootsuhiroaki@gmail.com>
 ;; Keywords: popup
 ;; URL: https://github.com/aki2o/emacs-pophint
-;; Version: 0.8.4
+;; Version: 0.8.5
 ;; Package-Requires: ((popup "0.5.0") (log4e "0.2.0") (yaxception "0.1"))
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -245,6 +245,11 @@ If nil, it means limitless."
   "Face for the part of bound key in prompt."
   :group 'pophint)
 
+(defface pophint:prompt-active-part-face
+  '((t (:bold t)))
+  "Face for the part of active source/direction in prompt."
+  :group 'pophint)
+
 (defvar pophint:sources nil
   "Buffer local sources for pop-up hint tip flexibly.")
 (make-variable-buffer-local 'pophint:sources)
@@ -482,7 +487,7 @@ If nil, it means limitless."
                                (concat (propertize selector 'face 'pophint:prompt-bind-part-face) ":")
                              "")
                            (if (string= hsrcnm srcnm)
-                               (propertize srcnm 'face 'bold)
+                               (propertize srcnm 'face 'pophint:prompt-active-part-face)
                              srcnm))))
                sources
                delimiter)))
@@ -515,7 +520,9 @@ If nil, it means limitless."
                                    (propertize pophint:switch-direction-char 'face 'pophint:prompt-bind-part-face)
                                    (mapconcat (lambda (d)
                                                 (let* ((s (format "%s" d)))
-                                                  (if (eq d direction) (propertize s 'face 'bold) s)))
+                                                  (if (eq d direction)
+                                                      (propertize s 'face 'pophint:prompt-active-part-face)
+                                                    s)))
                                               '(around forward backward)
                                               "|")))
                           (t
@@ -688,6 +695,7 @@ If nil, it means limitless."
                       (nidx (cond ((< nidx 0)      maxidx)
                                   ((> nidx maxidx) 0)
                                   (t               nidx))))
+                 (pophint--trace "got next source index : %s" nidx)
                  (nth nidx sources))
         do (if reverse (decf i) (incf i))
         finally return (let ((nidx (if reverse maxidx 0)))
@@ -1138,11 +1146,11 @@ For detail, see `pophint:do'."
          (sources (pophint--get-available-sources window))
          (lastsrc (when (pophint--condition-p lastc)
                     (pophint--condition-source lastc)))
-         (lastsrc (pophint--aif (assq 'selector lastsrc)
-                      (delq it lastsrc)
+         (compsrc (pophint--aif (assq 'selector lastsrc)
+                      (delq it (copy-sequence lastsrc))
                     lastsrc))
-         (source (when (and lastsrc
-                            (member lastsrc sources))
+         (source (when (and compsrc
+                            (member compsrc sources))
                    lastsrc)))
     (pophint:do :source source
                 :sources sources
