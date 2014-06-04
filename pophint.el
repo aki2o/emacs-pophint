@@ -5,7 +5,7 @@
 ;; Author: Hiroaki Otsu <ootsuhiroaki@gmail.com>
 ;; Keywords: popup
 ;; URL: https://github.com/aki2o/emacs-pophint
-;; Version: 0.8.5
+;; Version: 0.8.6
 ;; Package-Requires: ((popup "0.5.0") (log4e "0.2.0") (yaxception "0.1"))
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -701,6 +701,34 @@ If nil, it means limitless."
         finally return (let ((nidx (if reverse maxidx 0)))
                          (nth nidx sources))))
 
+(defsubst pophint--get-next-window (window)
+  (let ((pophint--last-condition nil)
+        (currwnd nil)
+        (nextwnd nil)
+        (basic-getter (lambda (w)
+                        (with-selected-window (or (and (windowp w) (window-live-p w) w)
+                                                  (get-buffer-window))
+                          (next-window)))))
+    (if (<= (length (window-list)) 2)
+        (funcall basic-getter window)
+      (pophint:do :not-highlight t
+                  :direction 'around
+                  :allwindow t
+                  :use-pos-tip t
+                  :source '((shown . "Wnd")
+                            (requires . 0)
+                            (method . (lambda ()
+                                        (if (eq currwnd (selected-window))
+                                            (setq currwnd nil)
+                                          (setq currwnd (selected-window))
+                                          (make-pophint:hint :startpt (point-min) :endpt (point) :value ""))))
+                            (action . (lambda (hint)
+                                        (setq nextwnd (pophint:hint-window hint))))))
+      (pophint--aif nextwnd
+          it
+        (pophint--warn "failed get next window by pophint:do")
+        (funcall basic-getter window)))))
+
 (defun* pophint--event-loop (hints cond &optional (inputed "") source-selection)
   (yaxception:$
     (yaxception:try
@@ -784,9 +812,7 @@ If nil, it means limitless."
                    (not not-switch-window))
               (pophint--debug "user inputed switch window")
               (pophint--deletes hints)
-              (let* ((nwindow (with-selected-window (or (and (windowp window) (window-live-p window) window)
-                                                        (get-buffer-window))
-                                (next-window)))
+              (let* ((nwindow (pophint--get-next-window window))
                      (nsources (when (not not-switch-source)
                                  (pophint--set-selector-sources (pophint--get-available-sources nwindow)))))
                 (setf (pophint--condition-window cond) nwindow)
