@@ -5,7 +5,7 @@
 ;; Author: Hiroaki Otsu <ootsuhiroaki@gmail.com>
 ;; Keywords: popup
 ;; URL: https://github.com/aki2o/emacs-pophint
-;; Version: 0.8.6
+;; Version: 0.8.7
 ;; Package-Requires: ((popup "0.5.0") (log4e "0.2.0") (yaxception "0.1"))
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -188,6 +188,11 @@ If nil, it means not delay."
 
 (defcustom pophint:switch-direction-char "d"
   "Character for switching direction of pop-up."
+  :type 'string
+  :group 'pophint)
+
+(defcustom pophint:switch-direction-reverse-char "D"
+  "Character for switching direction of pop-up in reverse."
   :type 'string
   :group 'pophint)
 
@@ -516,8 +521,12 @@ If nil, it means limitless."
                            (format "Src[%s] " (or (assoc-default 'shown source)
                                                   "*None*")))))
          (swdirtext (cond ((not not-switch-direction)
-                           (format "%s:SwDrct(%s) "
+                           (format "%s%s:SwDrct(%s) "
                                    (propertize pophint:switch-direction-char 'face 'pophint:prompt-bind-part-face)
+                                   (if pophint:switch-direction-reverse-char
+                                       (concat "/"
+                                               (propertize pophint:switch-direction-reverse-char 'face 'pophint:prompt-bind-part-face))
+                                     "")
                                    (mapconcat (lambda (d)
                                                 (let* ((s (format "%s" d)))
                                                   (if (eq d direction)
@@ -796,15 +805,17 @@ If nil, it means limitless."
                                    do (pophint--delete hint))))
                 (pophint--event-loop nhints cond currinputed)))
              ;; Switch direction
-             ((and (string= key pophint:switch-direction-char)
+             ((and (or (string= key pophint:switch-direction-char)
+                       (string= key pophint:switch-direction-reverse-char))
                    (not not-switch-direction))
               (pophint--debug "user inputed switch direction")
               (pophint--deletes hints)
-              (let ((ndirection (case (pophint--condition-direction cond)
-                                  (forward  'backward)
-                                  (backward 'around)
-                                  (around   'forward)
-                                  (t        'around))))
+              (let* ((reverse (string= key pophint:switch-direction-reverse-char))
+                     (ndirection (case (pophint--condition-direction cond)
+                                   (forward  (if reverse 'around 'backward))
+                                   (backward (if reverse 'forward 'around))
+                                   (around   (if reverse 'backward 'forward))
+                                   (t        'around))))
                 (setf (pophint--condition-direction cond) ndirection)
                 (pophint--let-user-select cond)))
              ;; Switch window
