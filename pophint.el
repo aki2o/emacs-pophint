@@ -5,7 +5,7 @@
 ;; Author: Hiroaki Otsu <ootsuhiroaki@gmail.com>
 ;; Keywords: popup
 ;; URL: https://github.com/aki2o/emacs-pophint
-;; Version: 0.8.7
+;; Version: 0.8.8
 ;; Package-Requires: ((popup "0.5.0") (log4e "0.2.0") (yaxception "0.1"))
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -68,8 +68,12 @@
 ;; Character for switching source used to pop-up in reverse.
 ;; `pophint:switch-source-delay'
 ;; Second for delay to switch source used to pop-up.
+;; `pophint:switch-source-selectors'
+;; List of dedicated selector for source.
 ;; `pophint:switch-direction-char'
 ;; Character for switching direction of pop-up.
+;; `pophint:switch-direction-reverse-char'
+;; Character for switching direction of pop-up in reverse.
 ;; `pophint:switch-window-char'
 ;; Character for switching window of pop-up.
 ;; `pophint:popup-max-tips'
@@ -184,6 +188,16 @@ This value is one of the following symbols.
 
 If nil, it means not delay."
   :type 'number
+  :group 'pophint)
+
+(defcustom pophint:switch-source-selectors nil
+  "List of dedicated selector for source.
+
+Example:
+ '((\"Quoted\"   . \"q\")
+   (\"Url/Path\" . \"u\"))
+"
+  :type '(repeat (cons string string))
   :group 'pophint)
 
 (defcustom pophint:switch-direction-char "d"
@@ -389,7 +403,7 @@ If nil, it means limitless."
             do (setq ret (concat (substring char-list r (+ r 1)) ret))
             finally return (concat (substring char-list r (+ r 1)) ret)))))
 
-(defsubst pophint--make-unique-char-strings (count char-list &optional not-upcase)
+(defsubst pophint--make-unique-char-strings (count char-list &optional not-upcase exclude-strings)
   (loop with reth = (make-hash-table :test 'equal)
         with idx = 0
         with currcount = 0
@@ -397,8 +411,9 @@ If nil, it means limitless."
         for currstr = (pophint--make-index-char-string idx char-list)
         for currstr = (if not-upcase currstr (upcase currstr))
         do (incf idx)
-        do (progn (puthash currstr t reth)
-                  (incf currcount))
+        do (when (not (member currstr exclude-strings))
+             (puthash currstr t reth)
+             (incf currcount))
         do (let ((chkvalue (substring currstr 0 (- (length currstr) 1))))
              (when (gethash chkvalue reth)
                (remhash chkvalue reth)
@@ -410,10 +425,18 @@ If nil, it means limitless."
                            (use-popup-char  pophint:popup-chars)
                            (use-source-char pophint:select-source-chars)
                            (t               nil))
+        with excludes = (loop for src in sources
+                              for s = (assoc-default (assoc-default 'shown src) pophint:switch-source-selectors)
+                              if s
+                              append (loop with idx = (length s)
+                                           while (> idx 0)
+                                           collect (substring s 0 idx)
+                                           do (decf idx)))
         with selectors = (when char-list
-                           (pophint--make-unique-char-strings (length sources) char-list t))
+                           (pophint--make-unique-char-strings (length sources) char-list t excludes))
         for src in sources
-        for selector = (when selectors (pop selectors))
+        for selector = (or (assoc-default (assoc-default 'shown src) pophint:switch-source-selectors)
+                           (when selectors (pop selectors)))
         do (pophint--awhen (assq 'selector src)
              (setq src (delq it src)))
         if selector
@@ -850,11 +873,9 @@ If nil, it means limitless."
                 (pophint--deletes hints)
                 (pophint--let-user-select cond)))
              ;; Select source
-             ((and (or (and (string-match key pophint:select-source-chars)
-                            (eq pophint:select-source-method 'use-source-char))
-                       (and (string-match key pophint:popup-chars)
-                            (eq pophint:select-source-method 'use-popup-char)
-                            source-selection))
+             ((and (or source-selection
+                       (and (string-match key pophint:select-source-chars)
+                            (eq pophint:select-source-method 'use-source-char)))
                    (not not-switch-source))
               (pophint--debug "user inputed select source char")
               (when (not source-selection) (setq inputed ""))
