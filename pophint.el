@@ -5,7 +5,7 @@
 ;; Author: Hiroaki Otsu <ootsuhiroaki@gmail.com>
 ;; Keywords: popup
 ;; URL: https://github.com/aki2o/emacs-pophint
-;; Version: 0.8.8
+;; Version: 0.8.9
 ;; Package-Requires: ((popup "0.5.0") (log4e "0.2.0") (yaxception "0.1"))
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -827,6 +827,39 @@ If nil, it means limitless."
                                    else
                                    do (pophint--delete hint))))
                 (pophint--event-loop nhints cond currinputed)))
+             ;; Select source
+             ((and (or source-selection
+                       (and (string-match key pophint:select-source-chars)
+                            (eq pophint:select-source-method 'use-source-char)))
+                   (not not-switch-source))
+              (pophint--debug "user inputed select source char")
+              (when (not source-selection) (setq inputed ""))
+              (let* ((currinputed (concat inputed key))
+                     (nsource (loop for src in sources
+                                    if (string= currinputed (or (assoc-default 'selector src) ""))
+                                    return src)))
+                (if (not nsource)
+                    (pophint--event-loop hints cond currinputed t)
+                  (pophint--deletes hints)
+                  (setf (pophint--condition-source cond) nsource)
+                  (pophint--let-user-select cond))))
+             ;; Switch source
+             ((and (or (string= key pophint:switch-source-char)
+                       (string= key pophint:switch-source-reverse-char))
+                   (not not-switch-source))
+              (pophint--debug "user inputed switch source")
+              (if (eq pophint:select-source-method 'use-popup-char)
+                  (pophint--event-loop hints cond "" t)
+                (loop with reverse = (string= key pophint:switch-source-reverse-char)
+                      do (setf (pophint--condition-source cond)
+                               (pophint--get-next-source (pophint--condition-source cond) sources reverse))
+                      while (and pophint:switch-source-delay
+                                 (string= key (pophint--menu-read-key-sequence
+                                               (pophint--make-prompt cond (length hints))
+                                               (pophint--condition-use-pos-tip cond)
+                                               pophint:switch-source-delay))))
+                (pophint--deletes hints)
+                (pophint--let-user-select cond)))
              ;; Switch direction
              ((and (or (string= key pophint:switch-direction-char)
                        (string= key pophint:switch-direction-reverse-char))
@@ -855,39 +888,6 @@ If nil, it means limitless."
                 ;;   (setf (pophint--condition-source cond) nil))
                 (setf (pophint--condition-sources cond) nsources)
                 (pophint--let-user-select cond)))
-             ;; Switch source
-             ((and (or (string= key pophint:switch-source-char)
-                       (string= key pophint:switch-source-reverse-char))
-                   (not not-switch-source))
-              (pophint--debug "user inputed switch source")
-              (if (eq pophint:select-source-method 'use-popup-char)
-                  (pophint--event-loop hints cond "" t)
-                (loop with reverse = (string= key pophint:switch-source-reverse-char)
-                      do (setf (pophint--condition-source cond)
-                               (pophint--get-next-source (pophint--condition-source cond) sources reverse))
-                      while (and pophint:switch-source-delay
-                                 (string= key (pophint--menu-read-key-sequence
-                                               (pophint--make-prompt cond (length hints))
-                                               (pophint--condition-use-pos-tip cond)
-                                               pophint:switch-source-delay))))
-                (pophint--deletes hints)
-                (pophint--let-user-select cond)))
-             ;; Select source
-             ((and (or source-selection
-                       (and (string-match key pophint:select-source-chars)
-                            (eq pophint:select-source-method 'use-source-char)))
-                   (not not-switch-source))
-              (pophint--debug "user inputed select source char")
-              (when (not source-selection) (setq inputed ""))
-              (let* ((currinputed (concat inputed key))
-                     (nsource (loop for src in sources
-                                    if (string= currinputed (or (assoc-default 'selector src) ""))
-                                    return src)))
-                (if (not nsource)
-                    (pophint--event-loop hints cond currinputed t)
-                  (pophint--deletes hints)
-                  (setf (pophint--condition-source cond) nsource)
-                  (pophint--let-user-select cond))))
              ;; Warning
              (t
               (pophint--debug "user inputed worthless char")
