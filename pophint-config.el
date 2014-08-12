@@ -5,7 +5,7 @@
 ;; Author: Hiroaki Otsu <ootsuhiroaki@gmail.com>
 ;; Keywords: popup
 ;; URL: https://github.com/aki2o/emacs-pophint
-;; Version: 0.9.4
+;; Version: 0.9.5
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -151,6 +151,9 @@
 (defvar pophint-config:quote-chars '("\"" "'" "`"))
 (defvar pophint-config:exclude-quote-chars nil)
 (make-variable-buffer-local 'pophint-config:exclude-quote-chars)
+(defun pophint-config:quoted-point-p (pt)
+  (memq (get-text-property pt 'face)
+        '(font-lock-string-face font-lock-doc-face)))
 (pophint:defsource
   :name "quoted"
   :description "Quoted range by `pophint-config:quote-chars'.
@@ -164,6 +167,9 @@ It's a buffer local variable and list like `pophint-config:quote-chars'."
                                                collect c))
                                   (char-re (when chars (regexp-opt chars)))
                                   (re (when char-re (rx-to-string `(and (group (regexp ,char-re)))))))
+                             (while (and (pophint-config:quoted-point-p (point))
+                                         re
+                                         (re-search-forward re nil t)))
                              (loop while (and re (re-search-forward re nil t))
                                    for word = (match-string-no-properties 1)
                                    for startpt = (point)
@@ -185,6 +191,9 @@ It's a buffer local variable and list like `pophint-config:quote-chars'."
                                                collect c))
                                   (char-re (when chars (regexp-opt chars)))
                                   (re (when char-re (rx-to-string `(and (group (regexp ,char-re)))))))
+                             (while (and (pophint-config:quoted-point-p (- (point) 1))
+                                         re
+                                         (re-search-backward re nil t)))
                              (loop while (and re (re-search-backward re nil t))
                                    for word = (match-string-no-properties 1)
                                    for endpt = (point)
