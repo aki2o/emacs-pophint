@@ -5,7 +5,7 @@
 ;; Author: Hiroaki Otsu <ootsuhiroaki@gmail.com>
 ;; Keywords: popup
 ;; URL: https://github.com/aki2o/emacs-pophint
-;; Version: 0.9.5
+;; Version: 0.9.6
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -66,6 +66,7 @@
 ;; (require 'anything-c-moccur nil t)
 ;; (require 'helm-c-moccur nil t)
 (require 'direx nil t)
+(require 'e2wm nil t)
 
 
 ;;;;;;;;;;;;;;;;;;;;;
@@ -944,6 +945,45 @@ It's a buffer local variable and list like `pophint-config:quote-chars'."
                         (widget-apply (widget-at) :action)
                         (e2wm:pst-window-select-main)))
             ,@pophint:source-widget))
+
+(defvar pophint-config:goto-immediately-when-e2wm-array-p nil)
+(defun pophint-config:set-goto-immediately-when-e2wm-array (activate)
+  "Whether do `e2wm:dp-array-goto-prev-pst-command' immediately
+when select hint-tip of `other-window' in array perspective of `e2wm.el'."
+  (setq pophint-config:goto-immediately-when-e2wm-array-p activate))
+
+(defun pophint-config:e2wm-array-other-window ()
+  "Do `other-window' in array perspective of `e2wm.el'."
+  (interactive)
+  (call-interactively 'other-window)
+  (if (and pophint-config:goto-immediately-when-e2wm-array-p
+           pophint-config:active-when-other-window-p
+           (> (length (window-list)) 3))
+      (e2wm:dp-array-goto-prev-pst-command)
+    (e2wm:dp-array-update-summary)))
+
+(let ((key (ignore-errors
+             (key-description (nth 0 (where-is-internal 'other-window global-map))))))
+  (when (and key
+             (keymapp e2wm:dp-array-minor-mode-map))
+    (define-key e2wm:dp-array-minor-mode-map
+      (read-kbd-macro key) 'pophint-config:e2wm-array-other-window)))
+
+(defvar pophint-config:active-when-e2wm-array-p nil)
+(defadvice e2wm:dp-array (after do-pophint disable)
+  (when (and (interactive-p)
+             pophint-config:active-when-e2wm-array-p
+             pophint-config:active-when-other-window-p
+             (> (length (window-list)) 3))
+    (pophint-config:e2wm-array-other-window)))
+
+(defun pophint-config:set-automatically-when-e2wm-array (activate)
+  "Whether do pop-up when `e2wm:dp-array'."
+  (if activate
+      (ad-enable-advice 'e2wm:dp-array 'after 'do-pophint)
+    (ad-disable-advice 'e2wm:dp-array 'after 'do-pophint))
+  (ad-activate 'e2wm:dp-array)
+  (setq pophint-config:active-when-e2wm-array-p activate))
 
 
 (provide 'pophint-config)

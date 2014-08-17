@@ -5,7 +5,7 @@
 ;; Author: Hiroaki Otsu <ootsuhiroaki@gmail.com>
 ;; Keywords: popup
 ;; URL: https://github.com/aki2o/emacs-pophint
-;; Version: 0.8.9
+;; Version: 0.8.10
 ;; Package-Requires: ((popup "0.5.0") (log4e "0.2.0") (yaxception "0.1"))
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -808,7 +808,16 @@ If nil, it means limitless."
             (pophint--debug "user inputed delete command")
             (pophint--deletes hints)
             (pophint--let-user-select cond))
-           ((eq gbinding 'self-insert-command)
+           ((or (eq gbinding 'self-insert-command)
+                (string-match key (mapconcat (lambda (s) (or s ""))
+                                             (list pophint:popup-chars
+                                                   pophint:select-source-chars
+                                                   pophint:switch-source-char
+                                                   pophint:switch-source-reverse-char
+                                                   pophint:switch-direction-char
+                                                   pophint:switch-direction-reverse-char
+                                                   pophint:switch-window-char)
+                                             "")))
             (cond
              ;; Grep hints
              ((and (string-match key pophint:popup-chars)
