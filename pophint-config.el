@@ -5,7 +5,7 @@
 ;; Author: Hiroaki Otsu <ootsuhiroaki@gmail.com>
 ;; Keywords: popup
 ;; URL: https://github.com/aki2o/emacs-pophint
-;; Version: 0.9.6
+;; Version: 0.9.7
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -428,27 +428,32 @@ It's a buffer local variable and list like `pophint-config:quote-chars'."
 ;;;;;;;;;;;;;;;;;;;;;;
 ;; For other window
 
-(defvar pophint-config:active-when-other-window-p nil)
 (defvar pophint-config:current-window nil)
+(pophint:defsource
+  :name "each-window"
+  :description "Each window"
+  :source '((shown . "Wnd")
+            (requires . 0)
+            (highlight . nil)
+            (method . (lambda ()
+                        (if (eq pophint-config:current-window
+                                (selected-window))
+                            (setq pophint-config:current-window nil)
+                          (setq pophint-config:current-window (selected-window))
+                          (make-pophint:hint :startpt (point-min) :endpt (point) :value ""))))
+            (action . (lambda (hint)
+                        (funcall pophint--default-action hint)
+                        (goto-char (pophint:hint-endpt hint))))))
+(eval-when-compile (defun pophint:do-each-window () nil))
+(pophint:set-allwindow-command pophint:do-each-window)
+
+(defvar pophint-config:active-when-other-window-p nil)
 (defadvice other-window (around do-pophint disable)
   (if (and (interactive-p)
            pophint-config:active-when-other-window-p
            (> (length (window-list)) 2))
-      (pophint:do :not-highlight t
-                  :direction 'around
-                  :allwindow t
-                  :use-pos-tip t
-                  :source '((shown . "Wnd")
-                            (requires . 0)
-                            (method . (lambda ()
-                                        (if (eq pophint-config:current-window
-                                                (selected-window))
-                                            (setq pophint-config:current-window nil)
-                                          (setq pophint-config:current-window (selected-window))
-                                          (make-pophint:hint :startpt (point-min) :endpt (point) :value ""))))
-                            (action . (lambda (hint)
-                                        (funcall pophint--default-action hint)
-                                        (goto-char (pophint:hint-endpt hint))))))
+      (let ((pophint:use-pos-tip t))
+        (pophint:do-each-window))
     ad-do-it))
 
 (defun pophint-config:set-do-when-other-window (activate)
@@ -634,6 +639,7 @@ It's a buffer local variable and list like `pophint-config:quote-chars'."
                         (if pophint-config:w3m-use-new-tab
                             (w3m-view-this-url-new-session)
                           (w3m-view-this-url))))))
+(eval-when-compile (defun pophint:do-w3m-anchor () nil))
 
 (defun pophint-config:do-w3m-anchor-sentinel (method)
   (let ((pophint-config:w3m-use-new-tab (case method
@@ -953,14 +959,15 @@ when select hint-tip of `other-window' in array perspective of `e2wm.el'."
   (setq pophint-config:goto-immediately-when-e2wm-array-p activate))
 
 (defun pophint-config:e2wm-array-other-window ()
-  "Do `other-window' in array perspective of `e2wm.el'."
+  "Do `pophint:do-each-window' in array perspective of `e2wm.el'."
   (interactive)
-  (call-interactively 'other-window)
-  (if (and pophint-config:goto-immediately-when-e2wm-array-p
-           pophint-config:active-when-other-window-p
-           (> (length (window-list)) 3))
-      (e2wm:dp-array-goto-prev-pst-command)
-    (e2wm:dp-array-update-summary)))
+  (if (<= (length (window-list)) 3)
+      (e2wm:dp-array-move-right-command)
+    (let ((pophint:use-pos-tip t))
+      (if (and (pophint:do-each-window)
+               pophint-config:goto-immediately-when-e2wm-array-p)
+          (e2wm:dp-array-goto-prev-pst-command)
+        (e2wm:dp-array-update-summary)))))
 
 (let ((key (ignore-errors
              (key-description (nth 0 (where-is-internal 'other-window global-map))))))
@@ -972,9 +979,7 @@ when select hint-tip of `other-window' in array perspective of `e2wm.el'."
 (defvar pophint-config:active-when-e2wm-array-p nil)
 (defadvice e2wm:dp-array (after do-pophint disable)
   (when (and (interactive-p)
-             pophint-config:active-when-e2wm-array-p
-             pophint-config:active-when-other-window-p
-             (> (length (window-list)) 3))
+             pophint-config:active-when-e2wm-array-p)
     (pophint-config:e2wm-array-other-window)))
 
 (defun pophint-config:set-automatically-when-e2wm-array (activate)
