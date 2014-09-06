@@ -5,7 +5,7 @@
 ;; Author: Hiroaki Otsu <ootsuhiroaki@gmail.com>
 ;; Keywords: popup
 ;; URL: https://github.com/aki2o/emacs-pophint
-;; Version: 0.9.7
+;; Version: 0.9.8
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -428,6 +428,7 @@ It's a buffer local variable and list like `pophint-config:quote-chars'."
 ;;;;;;;;;;;;;;;;;;;;;;
 ;; For other window
 
+(eval-when-compile (defun pophint:do-each-window () nil))
 (defvar pophint-config:current-window nil)
 (pophint:defsource
   :name "each-window"
@@ -444,7 +445,6 @@ It's a buffer local variable and list like `pophint-config:quote-chars'."
             (action . (lambda (hint)
                         (funcall pophint--default-action hint)
                         (goto-char (pophint:hint-endpt hint))))))
-(eval-when-compile (defun pophint:do-each-window () nil))
 (pophint:set-allwindow-command pophint:do-each-window)
 
 (defvar pophint-config:active-when-other-window-p nil)
