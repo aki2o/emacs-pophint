@@ -430,26 +430,43 @@ It's a buffer local variable and list like `pophint-config:quote-chars'."
 
 (defadvice set-mark-command (after do-pophint disable)
   (pophint--trace "start do when set-mark")
-  (let ((pophint-config:inch-inited-p nil))
-    (pophint:do :not-highlight t
-                :not-switch-window t
-                :use-pos-tip nil
-                :direction pophint-config:mark-direction
-                :source '((shown . "Region")
-                          (method . ((lambda ()
-                                       (when (not (eq (pophint:get-current-direction) 'backward))
-                                         (when (not pophint-config:inch-inited-p)
-                                           (setq pophint-config:inch-inited-p t)
-                                           (pophint-config:inch-forward))
-                                         (pophint-config:make-hint-with-inch-forward)))
-                                     (lambda ()
-                                       (when (not (eq (pophint:get-current-direction) 'forward))
-                                         (pophint-config:make-hint-with-inch-backward)))))
-                          (action . (lambda (hint)
-                                      (let* ((currpt (point)))
-                                        (goto-char (pophint:hint-startpt hint))
-                                        (when pophint-config:yank-immediately-when-marking-p
-                                          (kill-ring-save currpt (point))))))))))
+  (let ((pophint-config:inch-inited-p nil)
+        (action-name (if pophint-config:yank-immediately-when-marking-p
+                         "Yank"
+                       "Focus"))
+        (action (lambda (hint)
+                  (let ((currpt (point)))
+                    (goto-char (pophint:hint-startpt hint))
+                    (when pophint-config:yank-immediately-when-marking-p
+                      (kill-ring-save currpt (point)))))))
+    (case pophint-config:mark-direction
+      (forward
+       (pophint-config:do-with-narrow-or-wide-forward :narrow-limit (point-at-eol)
+                                                      :use-pos-tip nil
+                                                      :action-name action-name
+                                                      :action action))
+      (backward
+       (pophint-config:do-with-narrow-or-wide-backward :narrow-limit (point-at-bol)
+                                                       :use-pos-tip nil
+                                                       :action-name action-name
+                                                       :action action))
+      (t
+       (pophint:do :not-highlight t
+                   :not-switch-window t
+                   :use-pos-tip nil
+                   :direction pophint-config:mark-direction
+                   :source '((shown . "Region")
+                             (method . ((lambda ()
+                                          (when (not (eq (pophint:get-current-direction) 'backward))
+                                            (when (not pophint-config:inch-inited-p)
+                                              (setq pophint-config:inch-inited-p t)
+                                              (pophint-config:inch-forward))
+                                            (pophint-config:make-hint-with-inch-forward)))
+                                        (lambda ()
+                                          (when (not (eq (pophint:get-current-direction) 'forward))
+                                         (pophint-config:make-hint-with-inch-backward))))))
+                   :action-name action-name
+                   :action action)))))
 
 (defadvice cua-set-mark (after do-pophint disable)
   (pophint--trace "start do when cua-set-mark")
@@ -578,15 +595,14 @@ It's a buffer local variable and list like `pophint-config:quote-chars'."
   `(defun ,(intern (format "pophint-config:%s" (symbol-name command))) ()
      ,(format "Start `%s' after move to selected hint-tip point." (symbol-name command))
      (interactive)
-     (let ((pophint-config:inch-inited-p nil))
-       (pophint:do :not-highlight t
-                   :not-switch-window t
-                   :use-pos-tip nil
-                   :direction 'around
-                   :source '((shown . "Region")
-                             (action . (lambda (hint)
-                                         (goto-char (pophint:hint-startpt hint))
-                                         (call-interactively ',command))))))))
+     (pophint:do :not-highlight t
+                 :not-switch-window t
+                 :use-pos-tip nil
+                 :direction 'around
+                 :source '((shown . "Region")
+                           (action . (lambda (hint)
+                                       (goto-char (pophint:hint-startpt hint))
+                                       (call-interactively ',command)))))))
 (pophint-config:def-isearch-command isearch-forward)
 (pophint-config:def-isearch-command isearch-backward)
 
