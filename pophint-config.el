@@ -5,7 +5,7 @@
 ;; Author: Hiroaki Otsu <ootsuhiroaki@gmail.com>
 ;; Keywords: popup
 ;; URL: https://github.com/aki2o/emacs-pophint
-;; Version: 0.10.0
+;; Version: 0.10.1
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -584,15 +584,6 @@ It's a buffer local variable and list like `pophint-config:quote-chars'."
                    :use-pos-tip nil
                    :direction 'around
                    :source '((shown . "Region")
-                             (method . ((lambda ()
-                                          (when (not (eq (pophint:get-current-direction) 'backward))
-                                            (when (not pophint-config:inch-inited-p)
-                                              (setq pophint-config:inch-inited-p t)
-                                              (pophint-config:inch-forward))
-                                            (pophint-config:make-hint-with-inch-forward)))
-                                        (lambda ()
-                                          (when (not (eq (pophint:get-current-direction) 'forward))
-                                            (pophint-config:make-hint-with-inch-backward)))))
                              (action . (lambda (hint)
                                          (goto-char (pophint:hint-startpt hint))
                                          (call-interactively ',command))))))))
