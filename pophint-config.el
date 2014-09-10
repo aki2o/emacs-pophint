@@ -5,7 +5,7 @@
 ;; Author: Hiroaki Otsu <ootsuhiroaki@gmail.com>
 ;; Keywords: popup
 ;; URL: https://github.com/aki2o/emacs-pophint
-;; Version: 0.9.8
+;; Version: 0.10.0
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -84,25 +84,55 @@
 
 (defvar pophint-config:relayout-when-yank-range-start-p nil)
 
-(defvar pophint-config:collect-word-methods
-  '((lambda ()
-      (when (not (eq (pophint:get-current-direction) 'backward))
-        (let* ((currpt (point))
-               (startpt (progn (forward-word) (point)))
-               (endpt (save-excursion (forward-word) (point)))
-               (value (buffer-substring-no-properties startpt endpt)))
-          (when (and (< currpt startpt)
-                     (< startpt endpt))
-            (make-pophint:hint :startpt startpt :endpt endpt :value value)))))
-    (lambda ()
-      (when (not (eq (pophint:get-current-direction) 'forward))
-        (let* ((currpt (point))
-               (endpt (progn (backward-word) (point)))
-               (startpt (save-excursion (backward-word) (point)))
-               (value (buffer-substring-no-properties startpt endpt)))
-          (when (and (> currpt endpt)
-                     (> endpt startpt))
-            (make-pophint:hint :startpt startpt :endpt endpt :value value)))))))
+(defvar pophint-config:inch-length 3)
+
+(defun pophint-config:inch-forward ()
+  (let* ((currpt (point))
+         (pt1 (save-excursion
+                (loop for pt = (progn (forward-word 1) (point))
+                      until (or (>= (- pt currpt) pophint-config:inch-length)
+                                (= pt (point-max))))
+                (point)))
+         (pt2 (save-excursion
+                (loop for re in '("\\w+" "\\s-+" "\\W+" "\\w+")
+                      for pt = (progn (re-search-forward (concat "\\=" re) nil t)
+                                      (point))
+                      if (>= (- pt currpt) pophint-config:inch-length)
+                      return pt
+                      finally return pt1))))
+    (goto-char (if (> pt1 pt2) pt2 pt1))))
+
+(defun pophint-config:inch-backward ()
+  (let* ((currpt (point))
+         (pt1 (save-excursion
+                (loop for pt = (progn (backward-word 1) (point))
+                      until (or (>= (- currpt pt) pophint-config:inch-length)
+                                (= pt (point-min))))
+                (point)))
+         (pt2 (save-excursion
+                (loop for re in '("\\w+" "\\s-+" "\\W+" "\\w+")
+                      for pt = (progn (re-search-backward (concat re "\\=") nil t)
+                                      (point))
+                      if (>= (- currpt pt) pophint-config:inch-length)
+                      return pt
+                      finally return pt1))))
+    (goto-char (if (> pt1 pt2) pt1 pt2))))
+
+(defun pophint-config:make-hint-with-inch-forward (&optional limitpt)
+  (let ((currpt (point))
+        (nextpt (progn (pophint-config:inch-forward) (point))))
+    (when (and (or (not limitpt)
+                   (<= currpt limitpt))
+               (>= (- nextpt currpt) pophint-config:inch-length))
+      (make-pophint:hint :startpt currpt :endpt nextpt :value (buffer-substring-no-properties currpt nextpt)))))
+
+(defun pophint-config:make-hint-with-inch-backward (&optional limitpt)
+  (let ((currpt (point))
+        (nextpt (progn (pophint-config:inch-backward) (point))))
+    (when (and (or (not limitpt)
+                   (<= limitpt nextpt))
+               (>= (- currpt nextpt) pophint-config:inch-length))
+      (make-pophint:hint :startpt nextpt :endpt currpt :value (buffer-substring-no-properties nextpt currpt)))))
 
 (defvar pophint-config:yank-range-action
   (lambda (hint)
@@ -117,10 +147,15 @@
               (when pophint-config:relayout-when-yank-range-start-p
                 (recenter 0)
                 (delete-other-windows))
-              (pophint:do :source '((method . pophint-config:collect-word-methods))
-                          :direction 'forward
-                          :not-highlight t
+              (pophint:do :not-highlight t
                           :not-switch-window t
+                          :use-pos-tip nil
+                          :direction 'forward
+                          :source `((shown . "Region")
+                                    (requires . ,pophint-config:inch-length)
+                                    (init . pophint-config:inch-forward)
+                                    (method . pophint-config:make-hint-with-inch-forward))
+                          :action-name "Yank"
                           :action (lambda (hint)
                                     (when (number-or-marker-p pophint-config:yank-startpt)
                                       (kill-new (buffer-substring-no-properties pophint-config:yank-startpt
@@ -289,6 +324,97 @@ It's a buffer local variable and list like `pophint-config:quote-chars'."
 (add-to-list 'pophint:global-sources 'pophint:source-symbol t)
 
 
+;;;;;;;;;;;;;;;;
+;; For region
+
+(defun* pophint-config:do-with-narrow-or-wide-forward (&key narrow-limit action-name action use-pos-tip)
+  (let ((pophint:select-source-method 'nil)
+        (pophint:switch-source-delay 0)
+        (pophint-config:select-region-limitpt narrow-limit))
+    (pophint:do :not-highlight t
+                :not-switch-window t
+                :use-pos-tip use-pos-tip
+                :direction 'forward
+                :sources `(((shown . "Narrow")
+                            (requires . ,pophint-config:inch-length)
+                            (init . pophint-config:inch-forward)
+                            (method . (lambda ()
+                                        (pophint-config:make-hint-with-inch-forward
+                                         pophint-config:select-region-limitpt))))
+                           ((shown . "Wide")
+                            (requires . ,pophint-config:inch-length)
+                            (init . pophint-config:inch-forward)
+                            (method . pophint-config:make-hint-with-inch-forward)))
+                :action-name action-name
+                :action action)))
+
+(defun* pophint-config:do-with-narrow-or-wide-backward (&key narrow-limit action-name action use-pos-tip)
+  (let ((pophint:select-source-method 'nil)
+        (pophint:switch-source-delay 0)
+        (pophint-config:select-region-limitpt narrow-limit))
+    (pophint:do :not-highlight t
+                :not-switch-window t
+                :use-pos-tip use-pos-tip
+                :direction 'backward
+                :sources `(((shown . "Narrow")
+                            (requires . ,pophint-config:inch-length)
+                            (method . (lambda ()
+                                        (pophint-config:make-hint-with-inch-backward
+                                         pophint-config:select-region-limitpt))))
+                           ((shown . "Wide")
+                            (requires . ,pophint-config:inch-length)
+                            (method . pophint-config:make-hint-with-inch-backward)))
+                :action-name action-name
+                :action action)))
+
+(defun pophint-config:forward-region ()
+  "Forward region by selecting hint-tip."
+  (interactive)
+  (pophint-config:do-with-narrow-or-wide-forward
+   :narrow-limit (point-at-eol)
+   :use-pos-tip t
+   :action (lambda (hint) (goto-char (pophint:hint-startpt hint)))))
+
+(defun pophint-config:backward-region ()
+  "Backward region by selecting hint-tip."
+  (interactive)
+  (pophint-config:do-with-narrow-or-wide-backward
+   :narrow-limit (point-at-bol)
+   :use-pos-tip t
+   :action (lambda (hint) (goto-char (pophint:hint-startpt hint)))))
+
+(defvar pophint-config:kill-region-kill-ring-save-p t)
+(defun pophint-config:set-kill-region-kill-ring-save (activate)
+  "Whether to save into kill ring by `pophint-config:kill-region'/`pophint-config:backward-kill-region'."
+  (setq pophint-config:kill-region-kill-ring-save-p activate))
+
+(defun pophint-config:kill-region ()
+  "Kill/Delete region by selecting hint-tip."
+  (interactive)
+  (lexical-let ((func (if pophint-config:kill-region-kill-ring-save-p
+                          'kill-region
+                        'delete-region)))
+    (pophint-config:do-with-narrow-or-wide-forward
+     :narrow-limit (point-at-eol)
+     :use-pos-tip t
+     :action-name (symbol-name func)
+     :action (lambda (hint)
+               (funcall func (point) (pophint:hint-startpt hint))))))
+
+(defun pophint-config:backward-kill-region ()
+  "Kill/Delete region by selecting hint-tip."
+  (interactive)
+  (lexical-let ((func (if pophint-config:kill-region-kill-ring-save-p
+                          'kill-region
+                        'delete-region)))
+    (pophint-config:do-with-narrow-or-wide-backward
+     :narrow-limit (point-at-bol)
+     :use-pos-tip t
+     :action-name (symbol-name func)
+     :action (lambda (hint)
+               (funcall func (pophint:hint-startpt hint) (point))))))
+
+
 ;;;;;;;;;;;;;;
 ;; For mark
 
@@ -297,24 +423,40 @@ It's a buffer local variable and list like `pophint-config:quote-chars'."
   "Whether yank immediately when select hint-tip after `set-mark-command' or `cua-set-mark'."
   (setq pophint-config:yank-immediately-when-marking-p activate))
 
+(defvar pophint-config:mark-direction nil)
+(defun pophint-config:set-mark-direction (direction)
+  "Set direction when select hint-tip after `set-mark-command' or `cua-set-mark'."
+  (setq pophint-config:mark-direction direction))
+
 (defadvice set-mark-command (after do-pophint disable)
   (pophint--trace "start do when set-mark")
-  (pophint:do :not-highlight t
-              :not-switch-window t
-              :use-pos-tip nil
-              :source '((shown . "Region")
-                        (method . pophint-config:collect-word-methods)
-                        (action . (lambda (hint)
-                                    (let* ((currpt (point)))
-                                      (goto-char (pophint:hint-startpt hint))
-                                      (when pophint-config:yank-immediately-when-marking-p
-                                        (kill-ring-save currpt (point)))))))))
+  (let ((pophint-config:inch-inited-p nil))
+    (pophint:do :not-highlight t
+                :not-switch-window t
+                :use-pos-tip nil
+                :direction pophint-config:mark-direction
+                :source '((shown . "Region")
+                          (method . ((lambda ()
+                                       (when (not (eq (pophint:get-current-direction) 'backward))
+                                         (when (not pophint-config:inch-inited-p)
+                                           (setq pophint-config:inch-inited-p t)
+                                           (pophint-config:inch-forward))
+                                         (pophint-config:make-hint-with-inch-forward)))
+                                     (lambda ()
+                                       (when (not (eq (pophint:get-current-direction) 'forward))
+                                         (pophint-config:make-hint-with-inch-backward)))))
+                          (action . (lambda (hint)
+                                      (let* ((currpt (point)))
+                                        (goto-char (pophint:hint-startpt hint))
+                                        (when pophint-config:yank-immediately-when-marking-p
+                                          (kill-ring-save currpt (point))))))))))
 
 (defadvice cua-set-mark (after do-pophint disable)
   (pophint--trace "start do when cua-set-mark")
   (pophint:do :not-highlight t
               :not-switch-window t
               :use-pos-tip nil
+              :direction pophint-config:mark-direction
               :source '((shown . "Region")
                         (regexp . "[^a-zA-Z0-9]+")
                         (action . (lambda (hint)
@@ -376,21 +518,38 @@ It's a buffer local variable and list like `pophint-config:quote-chars'."
   (ad-activate 'isearch-exit)
   (setq pophint-config:active-when-isearch-exit-p activate))
 
+(defun pophint-config:isearch-yank-region ()
+  "Pull rest of region by selecting hint-tip from buffer into search string."
+  (interactive)
+  (isearch-yank-internal
+   (lambda ()
+     (pophint-config:do-with-narrow-or-wide-forward
+      :narrow-limit (point-at-eol)
+      :use-pos-tip nil
+      :action (lambda (hint)
+                (goto-char (pophint:hint-startpt hint))
+                (point))))))
+
+(defmacro pophint-config:set-isearch-yank-region-command (command)
+  "Set advice to replace COMMAND with `pophint-config:isearch-yank-region'."
+  (declare (indent 0))
+  `(defadvice ,command (around do-pophint activate)
+     (pophint--trace "start do as substitute for %s" (symbol-name ',command))
+     (pophint-config:isearch-yank-region)))
+
 (when (featurep 'anything-c-moccur)
   (defadvice anything-c-moccur-from-isearch (around disable-pophint activate)
     (let ((exitconf pophint-config:active-when-isearch-exit-p))
       (setq pophint-config:active-when-isearch-exit-p nil)
       ad-do-it
-      (setq pophint-config:active-when-isearch-exit-p exitconf)))
-  )
+      (setq pophint-config:active-when-isearch-exit-p exitconf))))
 
 (when (featurep 'helm-c-moccur)
   (defadvice helm-c-moccur-from-isearch (around disable-pophint activate)
     (let ((exitconf pophint-config:active-when-isearch-exit-p))
       (setq pophint-config:active-when-isearch-exit-p nil)
       ad-do-it
-      (setq pophint-config:active-when-isearch-exit-p exitconf)))
-  )
+      (setq pophint-config:active-when-isearch-exit-p exitconf))))
 
 (defvar pophint-config:isearch-action-result nil)
 (defun pophint-config:isearch-setup ()
@@ -405,24 +564,40 @@ It's a buffer local variable and list like `pophint-config:quote-chars'."
                    :name "ISearch"
                    :description "Do `isearch' from the text of selected hint-tip."
                    :action (lambda (hint)
-                             (let ((currpt (point))
-                                   (wnd (pophint:hint-window hint))
-                                   (pophint-config:isearch-action-result hint))
-                               (when (and (windowp wnd)
-                                          (window-live-p wnd))
-                                 (cond ((eq (get-buffer-window) wnd)
-                                        (goto-char (pophint:hint-startpt hint))
-                                        (or (isearch-forward)
-                                            (goto-char currpt)))
-                                       (t
-                                        (let ((retpt (save-window-excursion
-                                                       (with-selected-window wnd
-                                                         (goto-char (pophint:hint-startpt hint))
-                                                         (and (isearch-forward)
-                                                              (point))))))
-                                          (when retpt
-                                            (select-window wnd)
-                                            (goto-char retpt)))))))))
+                             (let ((pophint-config:isearch-action-result hint))
+                               (with-selected-window (pophint:hint-window hint)
+                                 (isearch-forward)))))
+
+(defadvice pophint:do-flexibly-isearch (before set-pophint-condition activate)
+  (when (pophint--condition-p pophint--last-condition)
+    (setf (pophint--condition-source pophint--last-condition)
+          (pophint--compile-source 'pophint:source-symbol))))
+
+(defmacro pophint-config:def-isearch-command (command)
+  (declare (indent 0))
+  `(defun ,(intern (format "pophint-config:%s" (symbol-name command))) ()
+     ,(format "Start `%s' after move to selected hint-tip point." (symbol-name command))
+     (interactive)
+     (let ((pophint-config:inch-inited-p nil))
+       (pophint:do :not-highlight t
+                   :not-switch-window t
+                   :use-pos-tip nil
+                   :direction 'around
+                   :source '((shown . "Region")
+                             (method . ((lambda ()
+                                          (when (not (eq (pophint:get-current-direction) 'backward))
+                                            (when (not pophint-config:inch-inited-p)
+                                              (setq pophint-config:inch-inited-p t)
+                                              (pophint-config:inch-forward))
+                                            (pophint-config:make-hint-with-inch-forward)))
+                                        (lambda ()
+                                          (when (not (eq (pophint:get-current-direction) 'forward))
+                                            (pophint-config:make-hint-with-inch-backward)))))
+                             (action . (lambda (hint)
+                                         (goto-char (pophint:hint-startpt hint))
+                                         (call-interactively ',command))))))))
+(pophint-config:def-isearch-command isearch-forward)
+(pophint-config:def-isearch-command isearch-backward)
 
 
 ;;;;;;;;;;;;;;;;;;;;;;
@@ -436,6 +611,7 @@ It's a buffer local variable and list like `pophint-config:quote-chars'."
   :source '((shown . "Wnd")
             (requires . 0)
             (highlight . nil)
+            (tip-face-attr . (:height 2.0))
             (method . (lambda ()
                         (if (eq pophint-config:current-window
                                 (selected-window))
@@ -463,6 +639,35 @@ It's a buffer local variable and list like `pophint-config:quote-chars'."
     (ad-disable-advice 'other-window 'around 'do-pophint))
   (ad-activate 'other-window)
   (setq pophint-config:active-when-other-window-p activate))
+
+
+;;;;;;;;;;;;;;;;;;
+;; For find-tag
+
+(defvar pophint-config:tag-jump-current-mode nil)
+
+(defmacro pophint-config:set-tag-jump-command (command)
+  "Set advice to move the point selected hint-tip before COMMAND."
+  (declare (indent 0))
+  `(defadvice ,command (around do-pophint activate)
+     (pophint--trace "start as substitute for %s" (symbol-name ',command))
+     (let ((pophint-config:tag-jump-current-mode major-mode)
+           (currpt (point))
+           (startpt (progn (skip-syntax-backward "w_") (point))))
+       (pophint:do :allwindow t
+                   :direction 'around
+                   :source `((activebufferp . (lambda (b)
+                                                (eq pophint-config:tag-jump-current-mode
+                                                    (buffer-local-value 'major-mode b))))
+                             ,@pophint:source-symbol)
+                   :action-name "TagJump"
+                   :action (lambda (hint)
+                             (with-selected-window (pophint:hint-window hint)
+                               (goto-char (pophint:hint-startpt hint))
+                               ad-do-it)))
+       (when (and (eq major-mode pophint-config:tag-jump-current-mode)
+                  (= (point) startpt))
+         (goto-char currpt)))))
 
 
 ;;;;;;;;;;;;;;;
@@ -519,6 +724,10 @@ It's a buffer local variable and list like `pophint-config:quote-chars'."
   :name "help-btn"
   :description "Button on help-mode."
   :source '((shown . "Link")
+            (dedicated . (e2wm))
+            (activebufferp . (lambda (b)
+                               (eq (buffer-local-value 'major-mode b)
+                                   'help-mode)))
             (method . ((lambda ()
                          (when (and (not (eq (pophint:get-current-direction) 'backward))
                                     (forward-button 1))
@@ -540,8 +749,9 @@ It's a buffer local variable and list like `pophint-config:quote-chars'."
                                              startpt endpt value)
                              (when btn (make-pophint:hint :startpt startpt :endpt endpt :value value)))))))
             (action . (lambda (hint)
-                        (goto-char (pophint:hint-startpt hint))
-                        (push-button)))))
+                        (with-selected-window (pophint:hint-window hint)
+                          (goto-char (pophint:hint-startpt hint))
+                          (push-button))))))
 
 (defun pophint-config:help-setup ()
   (add-to-list 'pophint:sources 'pophint:source-help-btn))
@@ -556,6 +766,10 @@ It's a buffer local variable and list like `pophint-config:quote-chars'."
   :name "info-ref"
   :description "Reference on info-mode."
   :source '((shown . "Link")
+            (dedicated . (e2wm))
+            (activebufferp . (lambda (b)
+                               (eq (buffer-local-value 'major-mode b)
+                                   'Info-mode)))
             (method . ((lambda ()
                          (when (not (eq (pophint:get-current-direction) 'backward))
                            (let* ((currpt (point))
@@ -573,8 +787,9 @@ It's a buffer local variable and list like `pophint-config:quote-chars'."
                              (when (> currpt startpt)
                                (make-pophint:hint :startpt startpt :endpt endpt :value value)))))))
             (action . (lambda (hint)
-                        (goto-char (pophint:hint-startpt hint))
-                        (Info-follow-nearest-node)))))
+                        (with-selected-window (pophint:hint-window hint)
+                          (goto-char (pophint:hint-startpt hint))
+                          (Info-follow-nearest-node))))))
 
 (defun pophint-config:info-setup ()
   (add-to-list 'pophint:sources 'pophint:source-info-ref))
@@ -610,10 +825,15 @@ It's a buffer local variable and list like `pophint-config:quote-chars'."
                                               'w3m-goto-url)))
                                  (w3m-search-do-search func engine str)))))
 
+(eval-when-compile (defun pophint:do-w3m-anchor () nil))
 (pophint:defsource
   :name "w3m-anchor"
   :description "Anchor on w3m."
   :source '((shown . "Link")
+            (dedicated . (e2wm))
+            (activebufferp . (lambda (b)
+                               (eq (buffer-local-value 'major-mode b)
+                                   'w3m-mode)))
             (method . ((lambda ()
                          (when (and (not (eq (pophint:get-current-direction) 'backward))
                                     (w3m-goto-next-anchor))
@@ -635,11 +855,11 @@ It's a buffer local variable and list like `pophint-config:quote-chars'."
                                                 :endpt (+ (point) (length title))
                                                 :value a))))))
             (action . (lambda (hint)
-                        (goto-char (pophint:hint-startpt hint))
-                        (if pophint-config:w3m-use-new-tab
-                            (w3m-view-this-url-new-session)
-                          (w3m-view-this-url))))))
-(eval-when-compile (defun pophint:do-w3m-anchor () nil))
+                        (with-selected-window (pophint:hint-window hint)
+                          (goto-char (pophint:hint-startpt hint))
+                          (if pophint-config:w3m-use-new-tab
+                              (w3m-view-this-url-new-session)
+                            (w3m-view-this-url)))))))
 
 (defun pophint-config:do-w3m-anchor-sentinel (method)
   (let ((pophint-config:w3m-use-new-tab (case method
@@ -677,12 +897,14 @@ It's a buffer local variable and list like `pophint-config:quote-chars'."
   "Yank using `pophint:source-w3m-anchor'."
   (interactive)
   (pophint:do :source pophint:source-w3m-anchor
+              :action-name "Yank"
               :action pophint-config:yank-action))
 
 (defun pophint-config:w3m-anchor-view-source ()
   "View source using `pophint:source-w3m-anchor'."
   (interactive)
   (pophint:do :source pophint:source-w3m-anchor
+              :action-name "ViewSource"
               :action (lambda (hint)
                         (let* ((sbuff (current-buffer))
                                (w3m-current-url (save-excursion
@@ -709,6 +931,7 @@ It's a buffer local variable and list like `pophint-config:quote-chars'."
   "Focus using `pophint:source-w3m-anchor'."
   (interactive)
   (pophint:do :source pophint:source-w3m-anchor
+              :action-name "Focus"
               :action (lambda (hint)
                         (goto-char (pophint:hint-startpt hint)))))
 
@@ -737,6 +960,10 @@ It's a buffer local variable and list like `pophint-config:quote-chars'."
   :name "eww-anchor"
   :description "Anchor on eww."
   :source '((shown . "Link")
+            (dedicated . (e2wm))
+            (activebufferp . (lambda (b)
+                               (eq (buffer-local-value 'major-mode b)
+                                   'eww-mode)))
             (method . ((lambda ()
                          (when (and (not (eq (pophint:get-current-direction) 'backward))
                                     (not (string= (shr-next-link) "No next link")))
@@ -754,8 +981,9 @@ It's a buffer local variable and list like `pophint-config:quote-chars'."
                                                 :endpt (text-property-any (point) (point-max)  'help-echo nil)
                                                 :value url))))))
             (action . (lambda (hint)
-                        (goto-char (pophint:hint-startpt hint))
-                        (shr-browse-url)))))
+                        (with-selected-window (pophint:hint-window hint)
+                          (goto-char (pophint:hint-startpt hint))
+                          (shr-browse-url))))))
 
 (defun pophint-config:eww-setup ()
   (add-to-list 'pophint:sources 'pophint:source-eww-anchor))
@@ -771,7 +999,17 @@ It's a buffer local variable and list like `pophint-config:quote-chars'."
                    :source '((shown . "Node")
                              (regexp . "^ *[d-][r-][w-][x-].+ +\\([^ ]+\\)$")
                              (requires . 1)
-                             (highlight . nil)))
+                             (highlight . nil)
+                             (dedicated . (e2wm))
+                             (activebufferp . (lambda (b)
+                                                (eq (buffer-local-value 'major-mode b)
+                                                    'dired-mode)))
+                             (action . (lambda (hint)
+                                         (funcall pophint--default-action hint)
+                                         (when (and (featurep 'e2wm)
+                                                    (e2wm:managed-p))
+                                           (dired-find-file)
+                                           (e2wm:pst-window-select-main))))))
 
 (defun pophint-config:dired-setup ()
   (add-to-list 'pophint:sources 'pophint:source-dired-node))
@@ -800,9 +1038,9 @@ It's a buffer local variable and list like `pophint-config:quote-chars'."
                                (requires . 1)
                                (highlight . nil)
                                (dedicated . (e2wm))
-                               (activebufferp . (lambda (buff)
-                                                  (with-current-buffer buff
-                                                    (eq major-mode 'direx:direx-mode))))
+                               (activebufferp . (lambda (b)
+                                                  (eq (buffer-local-value 'major-mode b)
+                                                      'direx:direx-mode)))
                                (action . (lambda (hint)
                                            (funcall pophint--default-action hint)
                                            (when (and (featurep 'e2wm)
@@ -834,6 +1072,7 @@ It's a buffer local variable and list like `pophint-config:quote-chars'."
   :source '((shown . "Widget")
             (requires . 0)
             (highlight . nil)
+            (dedicated . (e2wm))
             (activebufferp . (lambda (buff)
                                (with-current-buffer buff
                                  (when (where-is-internal 'widget-forward (current-local-map))
@@ -859,9 +1098,9 @@ It's a buffer local variable and list like `pophint-config:quote-chars'."
                                                   :endpt (+ (point) 1)
                                                   :value (pophint-config:widget-value w))))))))
             (action . (lambda (hint)
-                        (select-window (pophint:hint-window hint))
-                        (goto-char (pophint:hint-startpt hint))
-                        (widget-apply (widget-at) :action)))))
+                        (with-selected-window (pophint:hint-window hint)
+                          (goto-char (pophint:hint-startpt hint))
+                          (widget-apply (widget-at) :action))))))
 
 (defun pophint-config:widget-setup ()
   (add-to-list 'pophint:sources 'pophint:source-widget))
@@ -881,10 +1120,10 @@ It's a buffer local variable and list like `pophint-config:quote-chars'."
             (regexp . "^\\([^ ]+\\)")
             (requires . 1)
             (highlight . nil)
-            (activebufferp . (lambda (buff)
-                               (with-current-buffer buff
-                                 (and (e2wm:managed-p)
-                                      (eq major-mode 'e2wm:def-plugin-files-mode)))))
+            (activebufferp . (lambda (b)
+                               (and (e2wm:managed-p)
+                                    (eq (buffer-local-value 'major-mode b)
+                                        'e2wm:def-plugin-files-mode))))
             (action . (lambda (hint)
                         (select-window (pophint:hint-window hint))
                         (goto-char (pophint:hint-startpt hint))
@@ -897,10 +1136,10 @@ It's a buffer local variable and list like `pophint-config:quote-chars'."
             (regexp . "^ +[0-9]+ +\\([^ ]+\\)")
             (requires . 1)
             (highlight . nil)
-            (activebufferp . (lambda (buff)
-                               (with-current-buffer buff
-                                 (and (e2wm:managed-p)
-                                      (eq major-mode 'e2wm:def-plugin-history-list-mode)))))
+            (activebufferp . (lambda (b)
+                               (and (e2wm:managed-p)
+                                    (eq (buffer-local-value 'major-mode b)
+                                        'e2wm:def-plugin-history-list-mode))))
             (action . (lambda (hint)
                         (select-window (pophint:hint-window hint))
                         (goto-char (pophint:hint-startpt hint))
@@ -913,10 +1152,10 @@ It's a buffer local variable and list like `pophint-config:quote-chars'."
             (regexp . "^\\(?:<-\\)?\\(?:->\\)? +[0-9]+ +\\([^ ]+\\)")
             (requires . 1)
             (highlight . nil)
-            (activebufferp . (lambda (buff)
-                               (with-current-buffer buff
-                                 (and (e2wm:managed-p)
-                                      (eq major-mode 'e2wm:def-plugin-history-list2-mode)))))
+            (activebufferp . (lambda (b)
+                               (and (e2wm:managed-p)
+                                    (eq (buffer-local-value 'major-mode b)
+                                        'e2wm:def-plugin-history-list2-mode))))
             (action . (lambda (hint)
                         (select-window (pophint:hint-window hint))
                         (goto-char (pophint:hint-startpt hint))
@@ -930,10 +1169,10 @@ It's a buffer local variable and list like `pophint-config:quote-chars'."
             (regexp . "^\\(.+\\) *$")
             (requires . 1)
             (highlight . nil)
-            (activebufferp . (lambda (buff)
-                               (with-current-buffer buff
-                                 (and (e2wm:managed-p)
-                                      (eq major-mode 'e2wm:def-plugin-imenu-mode)))))
+            (activebufferp . (lambda (b)
+                               (and (e2wm:managed-p)
+                                    (eq (buffer-local-value 'major-mode b)
+                                        'e2wm:def-plugin-imenu-mode))))
             (action . (lambda (hint)
                         (select-window (pophint:hint-window hint))
                         (goto-char (pophint:hint-startpt hint))

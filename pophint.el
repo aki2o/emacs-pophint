@@ -5,7 +5,7 @@
 ;; Author: Hiroaki Otsu <ootsuhiroaki@gmail.com>
 ;; Keywords: popup
 ;; URL: https://github.com/aki2o/emacs-pophint
-;; Version: 0.8.11
+;; Version: 0.9.0
 ;; Package-Requires: ((popup "0.5.0") (log4e "0.2.0") (yaxception "0.1"))
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -269,6 +269,8 @@ If nil, it means limitless."
   "Face for the part of active source/direction in prompt."
   :group 'pophint)
 
+(make-face 'pophint:tip-face-temp)
+
 (defvar pophint:sources nil
   "Buffer local sources for pop-up hint tip flexibly.")
 (make-variable-buffer-local 'pophint:sources)
@@ -294,7 +296,8 @@ If nil, it means limitless."
 
 (defstruct pophint--condition
   source sources action action-name direction window allwindow use-pos-tip
-  not-highlight not-switch-direction not-switch-window not-switch-source)
+  not-highlight not-switch-direction not-switch-window not-switch-source
+  tip-face)
 
 (defvar pophint--action-hash (make-hash-table :test 'equal))
 (defvar pophint--enable-allwindow-p nil)
@@ -388,6 +391,13 @@ If nil, it means limitless."
 (defun pophint--compile-sources (sources)
   (loop for s in sources
         collect (pophint--compile-source s)))
+
+(defsubst pophint--update-tip-face (face-attr)
+  (if (not face-attr)
+      'pophint:tip-face
+    (copy-face 'pophint:tip-face 'pophint:tip-face-temp)
+    (apply 'set-face-attribute 'pophint:tip-face-temp nil face-attr)
+    'pophint:tip-face-temp))
 
 (defsubst pophint--make-index-char-string (idx char-list)
   (if (or (not (stringp char-list))
@@ -590,9 +600,12 @@ If nil, it means limitless."
       (setf (pophint--condition-source cond)
             (or (and (> (length sources) 0) (nth 0 sources))
                 pophint--default-source))))
-  (let ((hints (pophint--get-hints cond)))
+  (let ((hints (pophint--get-hints cond))
+        (tip-face-attr (assoc-default 'tip-face-attr (pophint--condition-source cond))))
     (pophint--show-hint-tips hints
-                             (pophint--current-not-highlight-p cond))
+                             (pophint--current-not-highlight-p cond)
+                             (or (pophint--condition-tip-face cond)
+                                 (pophint--update-tip-face tip-face-attr)))
     (pophint--event-loop hints cond)))
 
 (defsubst pophint--get-max-tips (source direction)
@@ -628,6 +641,7 @@ If nil, it means limitless."
          (direction (pophint--condition-direction cond))
          (window (pophint--condition-window cond))
          (allwindow (pophint--condition-allwindow cond))
+         (wndchker (pophint--compile-to-function (assoc-default 'activebufferp source)))
          (init (pophint--compile-to-function (assoc-default 'init source)))
          (requires (or (assoc-default 'requires source)
                        pophint:default-require-length))
@@ -640,45 +654,48 @@ If nil, it means limitless."
                      (and (windowp window) (window-live-p window) (list window))
                      (list (nth 0 (get-buffer-window-list)))))
       (with-selected-window wnd
-        (save-restriction
-          (yaxception:$
-            (yaxception:try (narrow-to-region (window-start) (window-end)))
-            (yaxception:catch 'error e
-              (pophint--warn "failed narrow region : window:%s startpt:%s endpt:%s" wnd (window-start) (window-end))))
-          (dolist (srchfnc srchfuncs)
-            (save-excursion
-              (loop initially (progn
-                                (pophint--trace
-                                 "start searching hint. require:[%s] max:[%s] buffer:[%s] point:[%s]\nregexp: %s\nfunc: %s"
-                                 requires maxtips (current-buffer) (point) re srchfnc)
-                                (when (functionp init) (funcall init)))
-                    with cnt = 0
-                    with orghint
-                    while (and (yaxception:$
-                                 (yaxception:try
-                                   (cond (srcmtd (pophint:hint-p (setq orghint (funcall srchfnc))))
-                                         (t      (funcall srchfnc re nil t))))
-                                 (yaxception:catch 'error e
-                                   (pophint--error "failed seek next popup point : %s\n%s"
-                                                   (yaxception:get-text e) (yaxception:get-stack-trace-string e))))
-                               (or (not maxtips)
-                                   (< cnt maxtips)))
-                    for hint = (or orghint
-                                   (make-pophint:hint :startpt (or (match-beginning 1) (match-beginning 0))
-                                                      :endpt (or (match-end 1) (match-end 0))
-                                                      :value (or (when (match-beginning 1) (match-string-no-properties 1))
-                                                                 (match-string-no-properties 0))))
-                    do (setf (pophint:hint-window hint) (selected-window))
-                    if (and (>= (length (pophint:hint-value hint)) requires)
-                            (not (invisible-p (pophint:hint-startpt hint))))
-                    do (progn (pophint--trace "found hint. text:[%s] startpt:[%s] endpt:[%s]"
-                                              (pophint:hint-value hint) (pophint:hint-startpt hint) (pophint:hint-endpt hint))
-                              (incf cnt)
-                              (setq hints (append hints (list hint))))))))))
+        (when (or (not (functionp wndchker))
+                  (funcall wndchker (window-buffer)))
+          (save-restriction
+            (yaxception:$
+              (yaxception:try (narrow-to-region (window-start) (window-end)))
+              (yaxception:catch 'error e
+                (pophint--warn "failed narrow region : window:%s startpt:%s endpt:%s" wnd (window-start) (window-end))))
+            (dolist (srchfnc srchfuncs)
+              (save-excursion
+                (loop initially (progn
+                                  (pophint--trace
+                                   "start searching hint. require:[%s] max:[%s] buffer:[%s] point:[%s]\nregexp: %s\nfunc: %s"
+                                   requires maxtips (current-buffer) (point) re srchfnc)
+                                  (when (functionp init) (funcall init)))
+                      with cnt = 0
+                      with orghint
+                      while (and (yaxception:$
+                                   (yaxception:try
+                                     (cond (srcmtd (pophint:hint-p (setq orghint (funcall srchfnc))))
+                                           (t      (funcall srchfnc re nil t))))
+                                   (yaxception:catch 'error e
+                                     (pophint--error "failed seek next popup point : %s\n%s"
+                                                     (yaxception:get-text e) (yaxception:get-stack-trace-string e))))
+                                 (or (not maxtips)
+                                     (< cnt maxtips)))
+                      for hint = (or orghint
+                                     (make-pophint:hint :startpt (or (match-beginning 1) (match-beginning 0))
+                                                        :endpt (or (match-end 1) (match-end 0))
+                                                        :value (or (when (match-beginning 1) (match-string-no-properties 1))
+                                                                   (match-string-no-properties 0))))
+                      do (setf (pophint:hint-window hint) (selected-window))
+                      if (and (>= (length (pophint:hint-value hint)) requires)
+                              (not (invisible-p (pophint:hint-startpt hint))))
+                      do (progn (pophint--trace "found hint. text:[%s] startpt:[%s] endpt:[%s]"
+                                                (pophint:hint-value hint) (pophint:hint-startpt hint) (pophint:hint-endpt hint))
+                                (incf cnt)
+                                (setq hints (append hints (list hint)))))))))))
     hints))
 
-(defun pophint--show-hint-tips (hints not-highlight)
-  (pophint--trace "start show hint tips. count:[%s] not-highlight:[%s]" (length hints) not-highlight)
+(defun pophint--show-hint-tips (hints not-highlight &optional tip-face)
+  (pophint--trace "start show hint tips. count:[%s] not-highlight:[%s] tip-face:[%s]"
+                  (length hints) not-highlight tip-face)
   (pophint--delete-last-hints)
   (yaxception:$
     (yaxception:try
@@ -699,7 +716,7 @@ If nil, it means limitless."
                                         :around nil
                                         :margin-left 0
                                         :margin-right 0
-                                        :face 'pophint:tip-face))
+                                        :face (or tip-face 'pophint:tip-face)))
                      (ov (when (not not-highlight)
                            (make-overlay (pophint:hint-startpt hint)
                                          (pophint:hint-endpt hint)))))
@@ -749,6 +766,7 @@ If nil, it means limitless."
                   :use-pos-tip t
                   :source '((shown . "Wnd")
                             (requires . 0)
+                            (tip-face-attr . (:height 2.0))
                             (method . (lambda ()
                                         (if (eq currwnd (selected-window))
                                             (setq currwnd nil)
@@ -796,12 +814,13 @@ If nil, it means limitless."
             (pophint--deletes hints)
             (keyboard-quit)
             nil)
-           ;; Return first hint
-           ((eq gbinding 'newline)
-            (pophint--debug "user inputed newline")
-            (let* ((hint (when (not (string= inputed "")) (pop hints))))
-              (pophint--deletes hints)
-              hint))
+           ;; This section is not correct because labels of hint has come to be unique.
+           ;; ;; Return first hint
+           ;; ((eq gbinding 'newline)
+           ;;  (pophint--debug "user inputed newline")
+           ;;  (let* ((hint (when (not (string= inputed "")) (pop hints))))
+           ;;    (pophint--deletes hints)
+           ;;    hint))
            ;; Restart loop
            ((or (eq gbinding 'backward-delete-char-untabify)
                 (eq gbinding 'delete-backward-char))
@@ -1027,6 +1046,8 @@ SOURCE is alist. The member is the following.
                      This function receives a buffer object and
                      needs to return non-nil if the buffer is the target of itself.
 
+- tip-face-attr  ... It's plist for customize of `pophint:tip-face' temporarily.
+
 Example:
  (pophint:defsource :name \"sexp-head\"
                     :description \"Head word of sexp.\"
@@ -1145,7 +1166,8 @@ FUNC is symbol not quoted. e.g. (pophint:set-not-allwindow-command pophint:do-fl
                          window
                          not-switch-window
                          allwindow
-                         (use-pos-tip 'global))
+                         (use-pos-tip 'global)
+                         tip-face-attr)
   "Do pop-up hint-tip using given source on target to direction.
 
 SOURCE is alist or symbol of alist. About its value, see `pophint:defsource'.
@@ -1163,7 +1185,8 @@ NOT-HIGHLIGHT is t or nil. If non-nil, don't highlight matched text when pop-up 
 WINDOW is window. find next point of pop-up in the window. If nil, its value is `selected-window'.
 NOT-SWITCH-WINDOW is t or nil. If non-nil, disable switching window when select shown hint.
 ALLWINDOW is t or nil. If non-nil, pop-up at all windows in frame.
-USE-POS-TIP is t or nil. If omitted, inherit `pophint:use-pos-tip'."
+USE-POS-TIP is t or nil. If omitted, inherit `pophint:use-pos-tip'.
+TIP-FACE-ATTR is plist for customize of `pophint:tip-face' temporarily."
   (interactive)
   (yaxception:$
     (yaxception:try
@@ -1192,7 +1215,9 @@ USE-POS-TIP is t or nil. If omitted, inherit `pophint:use-pos-tip'."
                                                :not-switch-direction (or (when direction t)
                                                                          (not pophint:switch-direction-p))
                                                :not-switch-window (or not-switch-window (one-window-p) allwindow-p)
-                                               :not-switch-source (and source (not sources)))))
+                                               :not-switch-source (and source (not sources))
+                                               :tip-face (when tip-face-attr
+                                                           (pophint--update-tip-face tip-face-attr)))))
              (hint (pophint--let-user-select c)))
         (pophint--do-action hint (pophint--current-action c))))
     (yaxception:catch 'error e
@@ -1309,15 +1334,15 @@ SITUATION is symbol used for finding active sources from `pophint:dedicated-sour
              (hints (loop for wnd in (window-list nil nil)
                           do (setf (pophint--condition-window cond) wnd)
                           append (with-selected-window wnd
-                                    (loop with buff = (window-buffer)
-                                          for src in sources
-                                          for chker = (assoc-default 'activebufferp src)
-                                          if (and (functionp chker)
-                                                  (funcall chker buff))
-                                          return (progn
-                                                   (puthash (buffer-name buff) (assoc-default 'action src) actionh)
-                                                   (setf (pophint--condition-source cond) src)
-                                                   (pophint--get-hints cond))))))
+                                   (loop with buff = (window-buffer)
+                                         for src in sources
+                                         for chker = (assoc-default 'activebufferp src)
+                                         if (and (functionp chker)
+                                                 (funcall chker buff))
+                                         return (progn
+                                                  (puthash (buffer-name buff) (assoc-default 'action src) actionh)
+                                                  (setf (pophint--condition-source cond) src)
+                                                  (pophint--get-hints cond))))))
              (hint (progn (pophint--show-hint-tips hints not-highlight)
                           (pophint--event-loop hints cond)))
              (action (or (when hint
