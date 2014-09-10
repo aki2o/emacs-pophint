@@ -26,7 +26,7 @@
                                (make-pophint:hint :value "fuga" :startpt 1 :endpt 2))
                          (make-pophint--condition)))
   (desc "event-loop return first hint return when inputed")
-  (expect "hoge"
+  (expect nil
     (stub pophint--menu-read-key-sequence => (kbd "q"))
     (stub lookup-key => 'newline)
     (let* ((ret (pophint--event-loop (list (make-pophint:hint :value "hoge" :startpt 1 :endpt 2)
