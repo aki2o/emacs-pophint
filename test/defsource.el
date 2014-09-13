@@ -38,7 +38,7 @@
                                    (dedicated . bar)))
       (and (boundp 'pophint:source-test-dedicated)
            (listp pophint:source-test-dedicated)
-           (not (commandp 'pophint:do-test-dedicated))
+           (commandp 'pophint:do-test-dedicated)
            pophint:dedicated-sources)))
   )
 

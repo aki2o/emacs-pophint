@@ -5,7 +5,7 @@
 ;; Author: Hiroaki Otsu <ootsuhiroaki@gmail.com>
 ;; Keywords: popup
 ;; URL: https://github.com/aki2o/emacs-pophint
-;; Version: 0.9.0
+;; Version: 0.9.1
 ;; Package-Requires: ((popup "0.5.0") (log4e "0.2.0") (yaxception "0.1"))
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -1068,12 +1068,12 @@ Example:
        (setq ,var-sym ,source)
        (when (not (assoc-default 'shown ,var-sym))
          (add-to-list ',var-sym '(shown . ,name)))
-       (if (assoc-default 'dedicated ,var-sym)
-           (add-to-list 'pophint:dedicated-sources ',var-sym t)
-         (defun ,fnc-sym ()
-           ,fnc-doc
-           (interactive)
-           (pophint:do :source ',var-sym))))))
+       (when (assoc-default 'dedicated ,var-sym)
+         (add-to-list 'pophint:dedicated-sources ',var-sym t))
+       (defun ,fnc-sym ()
+         ,fnc-doc
+         (interactive)
+         (pophint:do :source ',var-sym)))))
 
 (defmacro* pophint:defaction (&key key name description action)
   "Define the action that called when finish hint-tip selection and the command using it.
