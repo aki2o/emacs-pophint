@@ -5,7 +5,7 @@
 ;; Author: Hiroaki Otsu <ootsuhiroaki@gmail.com>
 ;; Keywords: popup
 ;; URL: https://github.com/aki2o/emacs-pophint
-;; Version: 0.9.1
+;; Version: 0.9.2
 ;; Package-Requires: ((popup "0.5.0") (log4e "0.2.0") (yaxception "0.1"))
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -269,8 +269,6 @@ If nil, it means limitless."
   "Face for the part of active source/direction in prompt."
   :group 'pophint)
 
-(make-face 'pophint:tip-face-temp)
-
 (defvar pophint:sources nil
   "Buffer local sources for pop-up hint tip flexibly.")
 (make-variable-buffer-local 'pophint:sources)
@@ -392,12 +390,13 @@ If nil, it means limitless."
   (loop for s in sources
         collect (pophint--compile-source s)))
 
+(make-face 'pophint--tip-face-temp)
 (defsubst pophint--update-tip-face (face-attr)
   (if (not face-attr)
       'pophint:tip-face
-    (copy-face 'pophint:tip-face 'pophint:tip-face-temp)
-    (apply 'set-face-attribute 'pophint:tip-face-temp nil face-attr)
-    'pophint:tip-face-temp))
+    (copy-face 'pophint:tip-face 'pophint--tip-face-temp)
+    (apply 'set-face-attribute 'pophint--tip-face-temp nil face-attr)
+    'pophint--tip-face-temp))
 
 (defsubst pophint--make-index-char-string (idx char-list)
   (if (or (not (stringp char-list))
@@ -693,15 +692,20 @@ If nil, it means limitless."
                                 (setq hints (append hints (list hint)))))))))))
     hints))
 
+(make-face 'pophint--minibuf-tip-face)
 (defun pophint--show-hint-tips (hints not-highlight &optional tip-face)
   (pophint--trace "start show hint tips. count:[%s] not-highlight:[%s] tip-face:[%s]"
                   (length hints) not-highlight tip-face)
   (pophint--delete-last-hints)
   (yaxception:$
     (yaxception:try
-      (loop with orgwnd = (selected-window)
+      (loop initially (progn
+                        (copy-face (or tip-face 'pophint:tip-face) 'pophint--minibuf-tip-face)
+                        (set-face-attribute 'pophint--minibuf-tip-face nil :height 1.0))
+            with orgwnd = (selected-window)
             with wnd = orgwnd
             with tiptexts = (pophint--make-unique-char-strings (length hints) pophint:popup-chars)
+            with minibufp = (window-minibuffer-p wnd)
             for hint in hints
             for tiptext = (or (when tiptexts (pop tiptexts)) "")
             for nextwnd = (pophint:hint-window hint)
@@ -709,14 +713,17 @@ If nil, it means limitless."
             return nil
             if (not (eq wnd nextwnd))
             do (progn (select-window nextwnd t)
-                      (setq wnd (selected-window)))
+                      (setq wnd (selected-window))
+                      (setq minibufp (window-minibuffer-p wnd)))
             do (let ((tip (popup-create (pophint:hint-startpt hint)
                                         (string-width tiptext)
                                         1
                                         :around nil
                                         :margin-left 0
                                         :margin-right 0
-                                        :face (or tip-face 'pophint:tip-face)))
+                                        :face (or (when minibufp 'pophint--minibuf-tip-face)
+                                                  tip-face
+                                                  'pophint:tip-face)))
                      (ov (when (not not-highlight)
                            (make-overlay (pophint:hint-startpt hint)
                                          (pophint:hint-endpt hint)))))
@@ -768,10 +775,14 @@ If nil, it means limitless."
                             (requires . 0)
                             (tip-face-attr . (:height 2.0))
                             (method . (lambda ()
-                                        (if (eq currwnd (selected-window))
-                                            (setq currwnd nil)
-                                          (setq currwnd (selected-window))
-                                          (make-pophint:hint :startpt (point-min) :endpt (point) :value ""))))
+                                        (cond ((eq currwnd (selected-window))
+                                               (setq currwnd nil))
+                                              ((and (window-minibuffer-p (selected-window))
+                                                    (not (minibuffer-window-active-p (selected-window))))
+                                               nil)
+                                              (t
+                                               (setq currwnd (selected-window))
+                                               (make-pophint:hint :startpt (point-min) :endpt (point) :value "")))))
                             (action . (lambda (hint)
                                         (setq nextwnd (pophint:hint-window hint))))))
       (pophint--aif nextwnd

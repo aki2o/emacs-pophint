@@ -5,7 +5,7 @@
 ;; Author: Hiroaki Otsu <ootsuhiroaki@gmail.com>
 ;; Keywords: popup
 ;; URL: https://github.com/aki2o/emacs-pophint
-;; Version: 0.10.1
+;; Version: 0.10.2
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -620,11 +620,15 @@ It's a buffer local variable and list like `pophint-config:quote-chars'."
             (highlight . nil)
             (tip-face-attr . (:height 2.0))
             (method . (lambda ()
-                        (if (eq pophint-config:current-window
-                                (selected-window))
-                            (setq pophint-config:current-window nil)
-                          (setq pophint-config:current-window (selected-window))
-                          (make-pophint:hint :startpt (point-min) :endpt (point) :value ""))))
+                        (cond ((eq pophint-config:current-window
+                                   (selected-window))
+                               (setq pophint-config:current-window nil))
+                              ((and (window-minibuffer-p (selected-window))
+                                    (not (minibuffer-window-active-p (selected-window))))
+                               nil)
+                              (t
+                               (setq pophint-config:current-window (selected-window))
+                               (make-pophint:hint :startpt (point-min) :endpt (point) :value "")))))
             (action . (lambda (hint)
                         (funcall pophint--default-action hint)
                         (goto-char (pophint:hint-endpt hint))))))
