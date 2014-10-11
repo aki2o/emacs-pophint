@@ -5,7 +5,7 @@
 ;; Author: Hiroaki Otsu <ootsuhiroaki@gmail.com>
 ;; Keywords: popup
 ;; URL: https://github.com/aki2o/emacs-pophint
-;; Version: 0.9.2
+;; Version: 0.9.3
 ;; Package-Requires: ((popup "0.5.0") (log4e "0.2.0") (yaxception "0.1"))
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -782,7 +782,7 @@ If nil, it means limitless."
                                                nil)
                                               (t
                                                (setq currwnd (selected-window))
-                                               (make-pophint:hint :startpt (point-min) :endpt (point) :value "")))))
+                                               (make-pophint:hint :startpt (window-start) :endpt (point) :value "")))))
                             (action . (lambda (hint)
                                         (setq nextwnd (pophint:hint-window hint))))))
       (pophint--aif nextwnd

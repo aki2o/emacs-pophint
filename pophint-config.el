@@ -5,7 +5,7 @@
 ;; Author: Hiroaki Otsu <ootsuhiroaki@gmail.com>
 ;; Keywords: popup
 ;; URL: https://github.com/aki2o/emacs-pophint
-;; Version: 0.10.2
+;; Version: 0.10.3
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -62,11 +62,6 @@
 (require 'rx)
 (require 'regexp-opt)
 (require 'ffap nil t)
-(require 'w3m-search nil t)
-;; (require 'anything-c-moccur nil t)
-;; (require 'helm-c-moccur nil t)
-(require 'direx nil t)
-(require 'e2wm nil t)
 
 
 ;;;;;;;;;;;;;;;;;;;;;
@@ -554,19 +549,21 @@ It's a buffer local variable and list like `pophint-config:quote-chars'."
      (pophint--trace "start do as substitute for %s" (symbol-name ',command))
      (pophint-config:isearch-yank-region)))
 
-(when (featurep 'anything-c-moccur)
-  (defadvice anything-c-moccur-from-isearch (around disable-pophint activate)
-    (let ((exitconf pophint-config:active-when-isearch-exit-p))
-      (setq pophint-config:active-when-isearch-exit-p nil)
-      ad-do-it
-      (setq pophint-config:active-when-isearch-exit-p exitconf))))
+(eval-after-load "anything-c-moccur"
+  '(progn
+     (defadvice anything-c-moccur-from-isearch (around disable-pophint activate)
+       (let ((exitconf pophint-config:active-when-isearch-exit-p))
+         (setq pophint-config:active-when-isearch-exit-p nil)
+         ad-do-it
+         (setq pophint-config:active-when-isearch-exit-p exitconf)))))
 
-(when (featurep 'helm-c-moccur)
-  (defadvice helm-c-moccur-from-isearch (around disable-pophint activate)
-    (let ((exitconf pophint-config:active-when-isearch-exit-p))
-      (setq pophint-config:active-when-isearch-exit-p nil)
-      ad-do-it
-      (setq pophint-config:active-when-isearch-exit-p exitconf))))
+(eval-after-load "helm-c-moccur"
+  '(progn
+     (defadvice helm-c-moccur-from-isearch (around disable-pophint activate)
+       (let ((exitconf pophint-config:active-when-isearch-exit-p))
+         (setq pophint-config:active-when-isearch-exit-p nil)
+         ad-do-it
+         (setq pophint-config:active-when-isearch-exit-p exitconf)))))
 
 (defvar pophint-config:isearch-action-result nil)
 (defun pophint-config:isearch-setup ()
@@ -625,10 +622,10 @@ It's a buffer local variable and list like `pophint-config:quote-chars'."
                                (setq pophint-config:current-window nil))
                               ((and (window-minibuffer-p (selected-window))
                                     (not (minibuffer-window-active-p (selected-window))))
-                               nil)
+                               (setq pophint-config:current-window nil))
                               (t
                                (setq pophint-config:current-window (selected-window))
-                               (make-pophint:hint :startpt (point-min) :endpt (point) :value "")))))
+                               (make-pophint:hint :startpt (window-start) :endpt (point) :value "")))))
             (action . (lambda (hint)
                         (funcall pophint--default-action hint)
                         (goto-char (pophint:hint-endpt hint))))))
@@ -811,157 +808,162 @@ It's a buffer local variable and list like `pophint-config:quote-chars'."
 ;;;;;;;;;;;;;
 ;; For w3m
 
-(defvar pophint-config:w3m-use-new-tab t)
-(defun pophint-config:set-w3m-use-new-tab (activate)
-  "Whether open new tab of w3m when action by w3m function."
-  (setq pophint-config:w3m-use-new-tab activate))
+(eval-after-load "w3m"
+  '(progn
 
-(pophint:defaction :key "s"
-                   :name "Search"
-                   :description "Do `w3m-search' about the text of selected hint-tip."
+     (defvar pophint-config:w3m-use-new-tab t)
+     (defun pophint-config:set-w3m-use-new-tab (activate)
+       "Whether open new tab of w3m when action by w3m function."
+       (setq pophint-config:w3m-use-new-tab activate))
+
+     (pophint:defaction :key "s"
+                        :name "Search"
+                        :description "Do `w3m-search' about the text of selected hint-tip."
+                        :action (lambda (hint)
+                                  (if (not (functionp 'w3m-search-do-search))
+                                      (message "Not exist function 'w3m-search-do-search'.")
+                                    (let* ((engine (or w3m-search-default-engine
+                                                       (completing-read "Select search engine: "
+                                                                        w3m-search-engine-alist
+                                                                        nil
+                                                                        t
+                                                                        nil
+                                                                        'w3m-search-engine-history)))
+                                           (str (read-string "Input search words: "
+                                                             (pophint:hint-value hint)))
+                                           (func (if pophint-config:w3m-use-new-tab
+                                                     'w3m-goto-url-new-session
+                                                   'w3m-goto-url)))
+                                      (w3m-search-do-search func engine str)))))
+
+     (eval-when-compile (defun pophint:do-w3m-anchor () nil))
+     (pophint:defsource
+       :name "w3m-anchor"
+       :description "Anchor on w3m."
+       :source '((shown . "Link")
+                 (dedicated . (e2wm))
+                 (activebufferp . (lambda (b)
+                                    (eq (buffer-local-value 'major-mode b)
+                                        'w3m-mode)))
+                 (method . ((lambda ()
+                              (when (and (not (eq (pophint:get-current-direction) 'backward))
+                                         (w3m-goto-next-anchor))
+                                (let* ((a (w3m-anchor (point)))
+                                       (title (w3m-anchor-title (point)))
+                                       (seq (w3m-anchor-sequence (point))))
+                                  (pophint--trace "found anchor. a:[%s] title:[%s] seq:[%s]" a title seq)
+                                  (make-pophint:hint :startpt (point)
+                                                     :endpt (+ (point) (length title))
+                                                     :value a))))
+                            (lambda ()
+                              (when (and (not (eq (pophint:get-current-direction) 'forward))
+                                         (w3m-goto-previous-anchor))
+                                (let* ((a (w3m-anchor (point)))
+                                       (title (w3m-anchor-title (point)))
+                                       (seq (w3m-anchor-sequence (point))))
+                                  (pophint--trace "found anchor. a:[%s] title:[%s] seq:[%s]" a title seq)
+                                  (make-pophint:hint :startpt (point)
+                                                     :endpt (+ (point) (length title))
+                                                     :value a))))))
+                 (action . (lambda (hint)
+                             (with-selected-window (pophint:hint-window hint)
+                               (goto-char (pophint:hint-startpt hint))
+                               (if pophint-config:w3m-use-new-tab
+                                   (w3m-view-this-url-new-session)
+                                 (w3m-view-this-url)))))))
+
+     (defun pophint-config:do-w3m-anchor-sentinel (method)
+       (let ((pophint-config:w3m-use-new-tab (case method
+                                               ('open   nil)
+                                               ('tab    t)
+                                               ('invert (not pophint-config:w3m-use-new-tab)))))
+         (pophint:do-w3m-anchor)))
+
+     (defun pophint-config:w3m-anchor-open ()
+       "Do `pophint:do-w3m-anchor' in current tab."
+       (interactive)
+       (pophint-config:do-w3m-anchor-sentinel 'open))
+
+     (defun pophint-config:w3m-anchor-open-new-tab ()
+       "Do `pophint:do-w3m-anchor' in new tab."
+       (interactive)
+       (pophint-config:do-w3m-anchor-sentinel 'tab))
+
+     (defun pophint-config:w3m-anchor-open-invert ()
+       "Do `pophint:do-w3m-anchor' inverting `pophint-config:w3m-use-new-tab'."
+       (interactive)
+       (pophint-config:do-w3m-anchor-sentinel 'invert))
+
+     (defun pophint-config:w3m-anchor-open-new-tab-continuously ()
+       "Do `pophint:do-w3m-anchor' in new tab continuously."
+       (interactive)
+       (let ((buff (current-buffer))
+             (pt (point)))
+         (pophint-config:do-w3m-anchor-sentinel 'tab)
+         (switch-to-buffer buff)
+         (goto-char pt)
+         (pophint-config:w3m-anchor-open-new-tab-continuously)))
+
+     (defun pophint-config:w3m-anchor-yank ()
+       "Yank using `pophint:source-w3m-anchor'."
+       (interactive)
+       (pophint:do :source pophint:source-w3m-anchor
+                   :action-name "Yank"
+                   :action pophint-config:yank-action))
+
+     (defun pophint-config:w3m-anchor-view-source ()
+       "View source using `pophint:source-w3m-anchor'."
+       (interactive)
+       (pophint:do :source pophint:source-w3m-anchor
+                   :action-name "ViewSource"
                    :action (lambda (hint)
-                             (if (not (functionp 'w3m-search-do-search))
-                                 (message "Not exist function 'w3m-search-do-search'.")
-                               (let* ((engine (or w3m-search-default-engine
-                                                  (completing-read "Select search engine: "
-                                                                   w3m-search-engine-alist
-                                                                   nil
-                                                                   t
-                                                                   nil
-                                                                   'w3m-search-engine-history)))
-                                      (str (read-string "Input search words: "
-                                                        (pophint:hint-value hint)))
-                                      (func (if pophint-config:w3m-use-new-tab
-                                                'w3m-goto-url-new-session
-                                              'w3m-goto-url)))
-                                 (w3m-search-do-search func engine str)))))
+                             (let* ((sbuff (current-buffer))
+                                    (w3m-current-url (save-excursion
+                                                       (goto-char (pophint:hint-startpt hint))
+                                                       (or (w3m-url-valid (w3m-anchor))
+                                                           (w3m-active-region-or-url-at-point t))))
+                                    (html (when w3m-current-url
+                                            (w3m-copy-buffer)
+                                            (w3m-view-source)
+                                            (buffer-string)))
+                                    (mode (assoc-default "hoge.html" auto-mode-alist 'string-match))
+                                    (buff (generate-new-buffer "*w3m view source*")))
+                               (w3m-delete-buffer)
+                               (with-current-buffer buff
+                                 (insert html)
+                                 (goto-char (point-min))
+                                 (set-buffer-modified-p nil)
+                                 (when (functionp mode)
+                                   (funcall mode)))
+                               (switch-to-buffer sbuff)
+                               (display-buffer buff)))))
 
-(eval-when-compile (defun pophint:do-w3m-anchor () nil))
-(pophint:defsource
-  :name "w3m-anchor"
-  :description "Anchor on w3m."
-  :source '((shown . "Link")
-            (dedicated . (e2wm))
-            (activebufferp . (lambda (b)
-                               (eq (buffer-local-value 'major-mode b)
-                                   'w3m-mode)))
-            (method . ((lambda ()
-                         (when (and (not (eq (pophint:get-current-direction) 'backward))
-                                    (w3m-goto-next-anchor))
-                           (let* ((a (w3m-anchor (point)))
-                                  (title (w3m-anchor-title (point)))
-                                  (seq (w3m-anchor-sequence (point))))
-                             (pophint--trace "found anchor. a:[%s] title:[%s] seq:[%s]" a title seq)
-                             (make-pophint:hint :startpt (point)
-                                                :endpt (+ (point) (length title))
-                                                :value a))))
-                       (lambda ()
-                         (when (and (not (eq (pophint:get-current-direction) 'forward))
-                                    (w3m-goto-previous-anchor))
-                           (let* ((a (w3m-anchor (point)))
-                                  (title (w3m-anchor-title (point)))
-                                  (seq (w3m-anchor-sequence (point))))
-                             (pophint--trace "found anchor. a:[%s] title:[%s] seq:[%s]" a title seq)
-                             (make-pophint:hint :startpt (point)
-                                                :endpt (+ (point) (length title))
-                                                :value a))))))
-            (action . (lambda (hint)
-                        (with-selected-window (pophint:hint-window hint)
-                          (goto-char (pophint:hint-startpt hint))
-                          (if pophint-config:w3m-use-new-tab
-                              (w3m-view-this-url-new-session)
-                            (w3m-view-this-url)))))))
+     (defun pophint-config:w3m-anchor-focus ()
+       "Focus using `pophint:source-w3m-anchor'."
+       (interactive)
+       (pophint:do :source pophint:source-w3m-anchor
+                   :action-name "Focus"
+                   :action (lambda (hint)
+                             (goto-char (pophint:hint-startpt hint)))))
 
-(defun pophint-config:do-w3m-anchor-sentinel (method)
-  (let ((pophint-config:w3m-use-new-tab (case method
-                                          ('open   nil)
-                                          ('tab    t)
-                                          ('invert (not pophint-config:w3m-use-new-tab)))))
-    (pophint:do-w3m-anchor)))
+     (defun pophint-config:w3m-set-keys ()
+       (local-set-key (kbd "f")       'pophint:do-w3m-anchor)
+       (local-set-key (kbd "F")       'pophint-config:w3m-anchor-open-invert)
+       (local-set-key (kbd "C-c C-e") 'pophint-config:w3m-anchor-open-new-tab-continuously)
+       (local-set-key (kbd "; o")     'pophint-config:w3m-anchor-open)
+       (local-set-key (kbd "; t")     'pophint-config:w3m-anchor-open-new-tab)
+       (local-set-key (kbd "; F")     'pophint-config:w3m-anchor-open-new-tab-continuously)
+       (local-set-key (kbd "; y")     'pophint-config:w3m-anchor-yank)
+       (local-set-key (kbd "; v")     'pophint-config:w3m-anchor-view-source)
+       (local-set-key (kbd "; RET")   'pophint-config:w3m-anchor-focus))
 
-(defun pophint-config:w3m-anchor-open ()
-  "Do `pophint:do-w3m-anchor' in current tab."
-  (interactive)
-  (pophint-config:do-w3m-anchor-sentinel 'open))
+     (defun pophint-config:w3m-setup ()
+       (add-to-list 'pophint:sources 'pophint:source-w3m-anchor)
+       (pophint-config:w3m-set-keys))
 
-(defun pophint-config:w3m-anchor-open-new-tab ()
-  "Do `pophint:do-w3m-anchor' in new tab."
-  (interactive)
-  (pophint-config:do-w3m-anchor-sentinel 'tab))
+     (add-hook 'w3m-mode-hook 'pophint-config:w3m-setup t)
 
-(defun pophint-config:w3m-anchor-open-invert ()
-  "Do `pophint:do-w3m-anchor' inverting `pophint-config:w3m-use-new-tab'."
-  (interactive)
-  (pophint-config:do-w3m-anchor-sentinel 'invert))
-
-(defun pophint-config:w3m-anchor-open-new-tab-continuously ()
-  "Do `pophint:do-w3m-anchor' in new tab continuously."
-  (interactive)
-  (let ((buff (current-buffer))
-        (pt (point)))
-    (pophint-config:do-w3m-anchor-sentinel 'tab)
-    (switch-to-buffer buff)
-    (goto-char pt)
-    (pophint-config:w3m-anchor-open-new-tab-continuously)))
-
-(defun pophint-config:w3m-anchor-yank ()
-  "Yank using `pophint:source-w3m-anchor'."
-  (interactive)
-  (pophint:do :source pophint:source-w3m-anchor
-              :action-name "Yank"
-              :action pophint-config:yank-action))
-
-(defun pophint-config:w3m-anchor-view-source ()
-  "View source using `pophint:source-w3m-anchor'."
-  (interactive)
-  (pophint:do :source pophint:source-w3m-anchor
-              :action-name "ViewSource"
-              :action (lambda (hint)
-                        (let* ((sbuff (current-buffer))
-                               (w3m-current-url (save-excursion
-                                                  (goto-char (pophint:hint-startpt hint))
-                                                  (or (w3m-url-valid (w3m-anchor))
-                                                      (w3m-active-region-or-url-at-point t))))
-                               (html (when w3m-current-url
-                                       (w3m-copy-buffer)
-                                       (w3m-view-source)
-                                       (buffer-string)))
-                               (mode (assoc-default "hoge.html" auto-mode-alist 'string-match))
-                               (buff (generate-new-buffer "*w3m view source*")))
-                          (w3m-delete-buffer)
-                          (with-current-buffer buff
-                            (insert html)
-                            (goto-char (point-min))
-                            (set-buffer-modified-p nil)
-                            (when (functionp mode)
-                              (funcall mode)))
-                          (switch-to-buffer sbuff)
-                          (display-buffer buff)))))
-
-(defun pophint-config:w3m-anchor-focus ()
-  "Focus using `pophint:source-w3m-anchor'."
-  (interactive)
-  (pophint:do :source pophint:source-w3m-anchor
-              :action-name "Focus"
-              :action (lambda (hint)
-                        (goto-char (pophint:hint-startpt hint)))))
-
-(defun pophint-config:w3m-set-keys ()
-  (local-set-key (kbd "f")       'pophint:do-w3m-anchor)
-  (local-set-key (kbd "F")       'pophint-config:w3m-anchor-open-invert)
-  (local-set-key (kbd "C-c C-e") 'pophint-config:w3m-anchor-open-new-tab-continuously)
-  (local-set-key (kbd "; o")     'pophint-config:w3m-anchor-open)
-  (local-set-key (kbd "; t")     'pophint-config:w3m-anchor-open-new-tab)
-  (local-set-key (kbd "; F")     'pophint-config:w3m-anchor-open-new-tab-continuously)
-  (local-set-key (kbd "; y")     'pophint-config:w3m-anchor-yank)
-  (local-set-key (kbd "; v")     'pophint-config:w3m-anchor-view-source)
-  (local-set-key (kbd "; RET")   'pophint-config:w3m-anchor-focus))
-
-(defun pophint-config:w3m-setup ()
-  (add-to-list 'pophint:sources 'pophint:source-w3m-anchor)
-  (pophint-config:w3m-set-keys))
-
-(add-hook 'w3m-mode-hook 'pophint-config:w3m-setup t)
+     ))
 
 
 ;;;;;;;;;;;;;
@@ -1031,40 +1033,41 @@ It's a buffer local variable and list like `pophint-config:quote-chars'."
 ;;;;;;;;;;;;;;;
 ;; For direx
 
-(when (featurep 'direx)
+(eval-after-load "direx"
+  '(progn
 
-  (defvar pophint-config:regexp-direx-node nil)
-  (defun pophint-config:direx-node-regexp ()
-    (or pophint-config:regexp-direx-node
-        (setq pophint-config:regexp-direx-node (rx-to-string `(and bol (* space)
-                                                                   (or ,direx:leaf-icon
-                                                                       ,direx:open-icon
-                                                                       ,direx:closed-icon)
-                                                                   (group (+ not-newline))
-                                                                   (* space) eol)))))
-  (pophint:defsource :name "direx-node"
-                     :description "Node on DireX."
-                     :source '((shown . "Node")
-                               (regexp . pophint-config:direx-node-regexp)
-                               (requires . 1)
-                               (highlight . nil)
-                               (dedicated . (e2wm))
-                               (activebufferp . (lambda (b)
-                                                  (eq (buffer-local-value 'major-mode b)
-                                                      'direx:direx-mode)))
-                               (action . (lambda (hint)
-                                           (funcall pophint--default-action hint)
-                                           (when (and (featurep 'e2wm)
-                                                      (e2wm:managed-p))
-                                             (direx:find-item-other-window)
-                                             (e2wm:pst-window-select-main))))))
+     (defvar pophint-config:regexp-direx-node nil)
+     (defun pophint-config:direx-node-regexp ()
+       (or pophint-config:regexp-direx-node
+           (setq pophint-config:regexp-direx-node (rx-to-string `(and bol (* space)
+                                                                      (or ,direx:leaf-icon
+                                                                          ,direx:open-icon
+                                                                          ,direx:closed-icon)
+                                                                      (group (+ not-newline))
+                                                                      (* space) eol)))))
+     (pophint:defsource :name "direx-node"
+                        :description "Node on DireX."
+                        :source '((shown . "Node")
+                                  (regexp . pophint-config:direx-node-regexp)
+                                  (requires . 1)
+                                  (highlight . nil)
+                                  (dedicated . (e2wm))
+                                  (activebufferp . (lambda (b)
+                                                     (eq (buffer-local-value 'major-mode b)
+                                                         'direx:direx-mode)))
+                                  (action . (lambda (hint)
+                                              (funcall pophint--default-action hint)
+                                              (when (and (featurep 'e2wm)
+                                                         (e2wm:managed-p))
+                                                (direx:find-item-other-window)
+                                                (e2wm:pst-window-select-main))))))
 
-  (defun pophint-config:direx-setup ()
-    (add-to-list 'pophint:sources 'pophint:source-direx-node))
+     (defun pophint-config:direx-setup ()
+       (add-to-list 'pophint:sources 'pophint:source-direx-node))
 
-  (add-hook 'direx:direx-mode-hook 'pophint-config:direx-setup t)
+     (add-hook 'direx:direx-mode-hook 'pophint-config:direx-setup t)
 
-  )
+     ))
 
 
 ;;;;;;;;;;;;;;;;
@@ -1122,123 +1125,169 @@ It's a buffer local variable and list like `pophint-config:quote-chars'."
 ;;;;;;;;;;;;;;
 ;; For e2wm
 
-(pophint:defsituation e2wm)
+(eval-after-load "e2wm"
+  '(progn
 
-(pophint:defsource
-  :name "e2wm-files"
-  :description "Node in files plugin of e2wm."
-  :source '((dedicated . e2wm)
-            (regexp . "^\\([^ ]+\\)")
-            (requires . 1)
-            (highlight . nil)
-            (activebufferp . (lambda (b)
-                               (and (e2wm:managed-p)
-                                    (eq (buffer-local-value 'major-mode b)
-                                        'e2wm:def-plugin-files-mode))))
-            (action . (lambda (hint)
-                        (select-window (pophint:hint-window hint))
-                        (goto-char (pophint:hint-startpt hint))
-                        (e2wm:def-plugin-files-select-command)))))
+     (pophint:defsituation e2wm)
 
-(pophint:defsource
-  :name "e2wm-history"
-  :description "Entry in history list plugin of e2wm."
-  :source '((dedicated . e2wm)
-            (regexp . "^ +[0-9]+ +\\([^ ]+\\)")
-            (requires . 1)
-            (highlight . nil)
-            (activebufferp . (lambda (b)
-                               (and (e2wm:managed-p)
-                                    (eq (buffer-local-value 'major-mode b)
-                                        'e2wm:def-plugin-history-list-mode))))
-            (action . (lambda (hint)
-                        (select-window (pophint:hint-window hint))
-                        (goto-char (pophint:hint-startpt hint))
-                        (e2wm:def-plugin-history-list-select-command)))))
-
-(pophint:defsource
-  :name "e2wm-history2"
-  :description "Entry in history list2 plugin of e2wm."
-  :source '((dedicated . e2wm)
-            (regexp . "^\\(?:<-\\)?\\(?:->\\)? +[0-9]+ +\\([^ ]+\\)")
-            (requires . 1)
-            (highlight . nil)
-            (activebufferp . (lambda (b)
-                               (and (e2wm:managed-p)
-                                    (eq (buffer-local-value 'major-mode b)
-                                        'e2wm:def-plugin-history-list2-mode))))
-            (action . (lambda (hint)
-                        (select-window (pophint:hint-window hint))
-                        (goto-char (pophint:hint-startpt hint))
-                        (e2wm:def-plugin-history-list2-select-command)
-                        (e2wm:pst-window-select-main)))))
-
-(pophint:defsource
-  :name "e2wm-imenu"
-  :description "Entry in imenu plugin of e2wm."
-  :source '((dedicated . e2wm)
-            (regexp . "^\\(.+\\) *$")
-            (requires . 1)
-            (highlight . nil)
-            (activebufferp . (lambda (b)
-                               (and (e2wm:managed-p)
-                                    (eq (buffer-local-value 'major-mode b)
-                                        'e2wm:def-plugin-imenu-mode))))
-            (action . (lambda (hint)
-                        (select-window (pophint:hint-window hint))
-                        (goto-char (pophint:hint-startpt hint))
-                        (e2wm:def-plugin-imenu-jump-command)))))
-
-(pophint:defsource
-  :name "e2wm-sww"
-  :description "Entry in sww plugin of e2wm."
-  :source `((init . (lambda ()
-                      (goto-char (point-min))))
-            (dedicated . e2wm)
-            (action . (lambda (hint)
-                        (select-window (pophint:hint-window hint))
-                        (goto-char (pophint:hint-startpt hint))
-                        (widget-apply (widget-at) :action)
-                        (e2wm:pst-window-select-main)))
-            ,@pophint:source-widget))
-
-(defvar pophint-config:goto-immediately-when-e2wm-array-p nil)
-(defun pophint-config:set-goto-immediately-when-e2wm-array (activate)
-  "Whether do `e2wm:dp-array-goto-prev-pst-command' immediately
+     (defvar pophint-config:goto-immediately-when-e2wm-array-p nil)
+     (defun pophint-config:set-goto-immediately-when-e2wm-array (activate)
+       "Whether do `e2wm:dp-array-goto-prev-pst-command' immediately
 when select hint-tip of `other-window' in array perspective of `e2wm.el'."
-  (setq pophint-config:goto-immediately-when-e2wm-array-p activate))
+       (setq pophint-config:goto-immediately-when-e2wm-array-p activate))
 
-(defun pophint-config:e2wm-array-other-window ()
-  "Do `pophint:do-each-window' in array perspective of `e2wm.el'."
-  (interactive)
-  (if (<= (length (window-list)) 3)
-      (e2wm:dp-array-move-right-command)
-    (let ((pophint:use-pos-tip t))
-      (if (and (pophint:do-each-window)
-               pophint-config:goto-immediately-when-e2wm-array-p)
-          (e2wm:dp-array-goto-prev-pst-command)
-        (e2wm:dp-array-update-summary)))))
+     (defun pophint-config:e2wm-array-other-window ()
+       "Do `pophint:do-each-window' in array perspective of `e2wm.el'."
+       (interactive)
+       (if (<= (length (window-list)) 3)
+           (e2wm:dp-array-move-right-command)
+         (let ((pophint:use-pos-tip t))
+           (if (and (pophint:do-each-window)
+                    pophint-config:goto-immediately-when-e2wm-array-p)
+               (e2wm:dp-array-goto-prev-pst-command)
+             (e2wm:dp-array-update-summary)))))
 
-(let ((key (ignore-errors
-             (key-description (nth 0 (where-is-internal 'other-window global-map))))))
-  (when (and key
-             (keymapp e2wm:dp-array-minor-mode-map))
-    (define-key e2wm:dp-array-minor-mode-map
-      (read-kbd-macro key) 'pophint-config:e2wm-array-other-window)))
+     (let ((key (ignore-errors
+                  (key-description (nth 0 (where-is-internal 'other-window global-map))))))
+       (when (and key
+                  (keymapp e2wm:dp-array-minor-mode-map))
+         (define-key e2wm:dp-array-minor-mode-map
+           (read-kbd-macro key) 'pophint-config:e2wm-array-other-window)))
 
-(defvar pophint-config:active-when-e2wm-array-p nil)
-(defadvice e2wm:dp-array (after do-pophint disable)
-  (when (and (interactive-p)
-             pophint-config:active-when-e2wm-array-p)
-    (pophint-config:e2wm-array-other-window)))
+     (defvar pophint-config:active-when-e2wm-array-p nil)
+     (defadvice e2wm:dp-array (after do-pophint disable)
+       (when (and (interactive-p)
+                  pophint-config:active-when-e2wm-array-p)
+         (pophint-config:e2wm-array-other-window)))
 
-(defun pophint-config:set-automatically-when-e2wm-array (activate)
-  "Whether do pop-up when `e2wm:dp-array'."
-  (if activate
-      (ad-enable-advice 'e2wm:dp-array 'after 'do-pophint)
-    (ad-disable-advice 'e2wm:dp-array 'after 'do-pophint))
-  (ad-activate 'e2wm:dp-array)
-  (setq pophint-config:active-when-e2wm-array-p activate))
+     (defun pophint-config:set-automatically-when-e2wm-array (activate)
+       "Whether do pop-up when `e2wm:dp-array'."
+       (if activate
+           (ad-enable-advice 'e2wm:dp-array 'after 'do-pophint)
+         (ad-disable-advice 'e2wm:dp-array 'after 'do-pophint))
+       (ad-activate 'e2wm:dp-array)
+       (setq pophint-config:active-when-e2wm-array-p activate))
+
+     (pophint:defsource
+       :name "e2wm-files"
+       :description "Node in files plugin of e2wm."
+       :source '((dedicated . e2wm)
+                 (regexp . "^\\([^ ]+\\)")
+                 (requires . 1)
+                 (highlight . nil)
+                 (activebufferp . (lambda (b)
+                                    (and (e2wm:managed-p)
+                                         (eq (buffer-local-value 'major-mode b)
+                                             'e2wm:def-plugin-files-mode))))
+                 (action . (lambda (hint)
+                             (select-window (pophint:hint-window hint))
+                             (goto-char (pophint:hint-startpt hint))
+                             (e2wm:def-plugin-files-select-command)))))
+
+     (pophint:defsource
+       :name "e2wm-history"
+       :description "Entry in history list plugin of e2wm."
+       :source '((dedicated . e2wm)
+                 (regexp . "^ +[0-9]+ +\\([^ ]+\\)")
+                 (requires . 1)
+                 (highlight . nil)
+                 (activebufferp . (lambda (b)
+                                    (and (e2wm:managed-p)
+                                         (eq (buffer-local-value 'major-mode b)
+                                             'e2wm:def-plugin-history-list-mode))))
+                 (action . (lambda (hint)
+                             (select-window (pophint:hint-window hint))
+                             (goto-char (pophint:hint-startpt hint))
+                             (e2wm:def-plugin-history-list-select-command)))))
+
+     (pophint:defsource
+       :name "e2wm-history2"
+       :description "Entry in history list2 plugin of e2wm."
+       :source '((dedicated . e2wm)
+                 (regexp . "^\\(?:<-\\)?\\(?:->\\)? +[0-9]+ +\\([^ ]+\\)")
+                 (requires . 1)
+                 (highlight . nil)
+                 (activebufferp . (lambda (b)
+                                    (and (e2wm:managed-p)
+                                         (eq (buffer-local-value 'major-mode b)
+                                             'e2wm:def-plugin-history-list2-mode))))
+                 (action . (lambda (hint)
+                             (select-window (pophint:hint-window hint))
+                             (goto-char (pophint:hint-startpt hint))
+                             (e2wm:def-plugin-history-list2-select-command)
+                             (e2wm:pst-window-select-main)))))
+
+     (pophint:defsource
+       :name "e2wm-imenu"
+       :description "Entry in imenu plugin of e2wm."
+       :source '((dedicated . e2wm)
+                 (regexp . "^\\(.+\\) *$")
+                 (requires . 1)
+                 (highlight . nil)
+                 (activebufferp . (lambda (b)
+                                    (and (e2wm:managed-p)
+                                         (eq (buffer-local-value 'major-mode b)
+                                             'e2wm:def-plugin-imenu-mode))))
+                 (action . (lambda (hint)
+                             (select-window (pophint:hint-window hint))
+                             (goto-char (pophint:hint-startpt hint))
+                             (e2wm:def-plugin-imenu-jump-command)))))
+
+     ))
+
+(eval-after-load "e2wm-sww"
+  '(progn
+     
+     (pophint:defsource
+       :name "e2wm-sww"
+       :description "Entry in sww plugin of e2wm."
+       :source `((init . (lambda ()
+                           (goto-char (point-min))))
+                 (dedicated . e2wm)
+                 (action . (lambda (hint)
+                             (select-window (pophint:hint-window hint))
+                             (goto-char (pophint:hint-startpt hint))
+                             (widget-apply (widget-at) :action)
+                             (e2wm:pst-window-select-main)))
+                 ,@pophint:source-widget))
+
+     ))
+
+(eval-after-load "e2wm-term"
+  '(progn
+
+     (pophint:defsource
+       :name "e2wm-term-history"
+       :description ""
+       :source '((dedicated . e2wm)
+                 (requires . 1)
+                 (highlight . nil)
+                 (activebufferp . (lambda (b)
+                                    (and (e2wm:managed-p)
+                                         (eq (buffer-local-value 'major-mode b)
+                                             'e2wm-term:history-mode))))
+                 (method . ((lambda ()
+                              (when (not (eq (pophint:get-current-direction) 'backward))
+                                (let* ((startpt (e2wm-term::history-currpt))
+                                       (endpt (progn (e2wm-term:history-move-next t t) (point)))
+                                       (value (buffer-substring-no-properties startpt endpt)))
+                                  (when (> endpt startpt)
+                                    (make-pophint:hint :startpt startpt :endpt endpt :value value)))))
+                            (lambda ()
+                              (when (not (eq (pophint:get-current-direction) 'forward))
+                                (let* ((endpt (e2wm-term::history-currpt))
+                                       (startpt (progn (e2wm-term:history-move-previous t t) (point)))
+                                       (value (buffer-substring-no-properties startpt endpt)))
+                                  (when (> endpt startpt)
+                                    (make-pophint:hint :startpt startpt :endpt endpt :value value)))))))
+                 (action . (lambda (hint)
+                             (select-window (pophint:hint-window hint))
+                             (goto-char (pophint:hint-startpt hint))
+                             (e2wm-term:history-highlight)
+                             (e2wm-term:history-sync)
+                             (e2wm-term:history-send-pt-point)))))
+
+     ))
 
 
 (provide 'pophint-config)
