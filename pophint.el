@@ -5,7 +5,7 @@
 ;; Author: Hiroaki Otsu <ootsuhiroaki@gmail.com>
 ;; Keywords: popup
 ;; URL: https://github.com/aki2o/emacs-pophint
-;; Version: 0.9.3
+;; Version: 0.9.4
 ;; Package-Requires: ((popup "0.5.0") (log4e "0.2.0") (yaxception "0.1"))
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -122,6 +122,8 @@
 ;; Redo last pop-up hint-tip using any sources.
 ;; `pophint:toggle-use-pos-tip'
 ;; Toggle the status of `pophint:use-pos-tip'.
+;; `pophint:delete-last-hints'
+;; Delete last hint-tip.
 ;; 
 ;;  *** END auto-documentation
 ;; [Note] Functions and variables other than listed above, Those specifications may be changed without notice.
@@ -363,11 +365,6 @@ If nil, it means limitless."
   (dolist (hint hints)
     (pophint--delete hint))
   nil)
-
-(defun pophint--delete-last-hints ()
-  (when pophint--last-hints
-    (pophint--deletes pophint--last-hints)
-    (setq pophint--last-hints nil)))
 
 (defun pophint--compile-to-function (something)
   (cond ((functionp something)
@@ -696,7 +693,7 @@ If nil, it means limitless."
 (defun pophint--show-hint-tips (hints not-highlight &optional tip-face)
   (pophint--trace "start show hint tips. count:[%s] not-highlight:[%s] tip-face:[%s]"
                   (length hints) not-highlight tip-face)
-  (pophint--delete-last-hints)
+  (pophint:delete-last-hints)
   (yaxception:$
     (yaxception:try
       (loop initially (progn
@@ -812,7 +809,11 @@ If nil, it means limitless."
                               (lookup-key (current-local-map) key))
                             gbinding)))
           (pophint--trace "got user input. key:[%s] gbinding:[%s] binding:[%s]" key gbinding binding)
-          (setq pophint--last-hints nil)
+
+          ;; This code maybe is wrong. So, comment outed.
+          ;; But not delete. Because I've forgotten why this code had been written.
+          ;; (setq pophint--last-hints nil)
+
           ;; Case by user input
           (cond
            ;; Error
@@ -1387,9 +1388,17 @@ SITUATION is symbol used for finding active sources from `pophint:dedicated-sour
   (interactive)
   (setq pophint:use-pos-tip (not pophint:use-pos-tip)))
 
+;;;###autoload
+(defun pophint:delete-last-hints ()
+  "Delete last hint-tip."
+  (interactive)
+  (when pophint--last-hints
+    (pophint--deletes pophint--last-hints)
+    (setq pophint--last-hints nil)))
+
 
 (defadvice keyboard-quit (before pophint:delete-last-hints activate)
-  (pophint--delete-last-hints))
+  (ignore-errors (pophint:delete-last-hints)))
 
 
 (provide 'pophint)
