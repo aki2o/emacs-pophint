@@ -5,7 +5,7 @@
 ;; Author: Hiroaki Otsu <ootsuhiroaki@gmail.com>
 ;; Keywords: popup
 ;; URL: https://github.com/aki2o/emacs-pophint
-;; Version: 0.10.3
+;; Version: 0.10.4
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -183,8 +183,9 @@
 (defvar pophint-config:exclude-quote-chars nil)
 (make-variable-buffer-local 'pophint-config:exclude-quote-chars)
 (defun pophint-config:quoted-point-p (pt)
-  (memq (get-text-property pt 'face)
-        '(font-lock-string-face font-lock-doc-face)))
+  (when (> pt 0)
+    (memq (get-text-property pt 'face)
+          '(font-lock-string-face font-lock-doc-face))))
 (pophint:defsource
   :name "quoted"
   :description "Quoted range by `pophint-config:quote-chars'.
@@ -1080,6 +1081,8 @@ It's a buffer local variable and list like `pophint-config:quote-chars'."
         if (stringp ret) return ret
         finally return ""))
 
+(defvar pophint-config:widget-not-invoke-types '(editable-field text))
+
 (pophint:defsource
   :name "widget"
   :description "Widget"
@@ -1114,7 +1117,11 @@ It's a buffer local variable and list like `pophint-config:quote-chars'."
             (action . (lambda (hint)
                         (with-selected-window (pophint:hint-window hint)
                           (goto-char (pophint:hint-startpt hint))
-                          (widget-apply (widget-at) :action))))))
+                          (let* ((w (widget-at))
+                                 (type (when w (widget-type w))))
+                            (when (and w
+                                       (not (memq type pophint-config:widget-not-invoke-types)))
+                              (widget-apply w :action))))))))
 
 (defun pophint-config:widget-setup ()
   (add-to-list 'pophint:sources 'pophint:source-widget))
