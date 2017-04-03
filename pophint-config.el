@@ -66,17 +66,10 @@
                    (string-match "\\.el\\'" f)
                    (not (string-match "-autoloads\\.el\\'" f))
                    (not (string= f "pophint-config---util.el")))
-           collect (file-name-sans-extension f)))
+           collect (intern (file-name-sans-extension f))))
 
 
-;; (dolist (feat pophint-config:features)
-;;   (eval-after-load feat
-;;     `(progn
-;;        (when pophint-config:run-defcommand-exhaustively-after-load
-;;          (pophint:defcommand-exhaustively :feature ,feat)))))
-
-
-(or (require 'pophint-autoloads nil t)
+(or (load "pophint-autoloads.el" t)
     (progn
       (require 'pophint-config---util)
       (mapc 'require pophint-config:features)))
