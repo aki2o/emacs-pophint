@@ -2,19 +2,23 @@
 (require 'rx)
 (require 'pophint)
 
+(defcustom pophint-direx:enable t
+  "Whether to enable feature."
+  :type 'boolean
+  :group 'pophint)
 
-(defvar pophint-config:regexp-direx-node nil)
+(defvar pophint-direx--node-regexp nil)
 
-(defun pophint-config:direx-node-regexp ()
-  (or pophint-config:regexp-direx-node
-      (setq pophint-config:regexp-direx-node
+(defun pophint-direx:node-regexp ()
+  (or pophint-direx--node-regexp
+      (setq pophint-direx--node-regexp
             (rx-to-string `(and bol (* space)
                                 (or ,direx:leaf-icon
                                     ,direx:open-icon
                                     ,direx:closed-icon)
                                 (group (+ not-newline))
                                 (* space) eol)))))
-
+(define-obsolete-function-alias 'pophint-config:direx-node-regexp 'pophint-direx:node-regexp "1.1.0")
 
 ;;;###autoload
 (defun pophint:do-direx-node () (interactive))
@@ -22,7 +26,7 @@
   (pophint:defsource :name "direx-node"
                      :description "Node on DireX."
                      :source '((shown . "Node")
-                               (regexp . pophint-config:direx-node-regexp)
+                               (regexp . pophint-direx:node-regexp)
                                (requires . 1)
                                (highlight . nil)
                                (dedicated . (e2wm))
@@ -35,15 +39,21 @@
                                              (direx:find-item-other-window)
                                              (e2wm:pst-window-select-main)))))))
 
-
-;;;###autoload
-(defun pophint-config:direx-setup ()
+(defun pophint-direx:setup ()
   (add-to-list 'pophint:sources 'pophint:source-direx-node))
-
+(define-obsolete-function-alias 'pophint-config:direx-setup 'pophint-direx:setup "1.1.0")
 
 ;;;###autoload
-(add-hook 'direx:direx-mode-hook 'pophint-config:direx-setup t)
+(defun pophint-direx:provision (activate)
+  (interactive)
+  (if activate
+      (add-hook 'direx:direx-mode-hook 'pophint-direx:setup t)
+    (remove-hook 'direx:direx-mode-hook 'pophint-direx:setup)))
+
+;;;###autoload
+(with-eval-after-load 'direx
+  (when pophint-direx:enable (pophint-direx:provision t)))
 
 
-(provide 'pophint-config--direx)
-;;; pophint-config--direx.el ends here
+(provide 'pophint-direx)
+;;; pophint-direx.el ends here

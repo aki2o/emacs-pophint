@@ -1,5 +1,9 @@
 (require 'pophint)
 
+(defcustom pophint-dired:enable t
+  "Whether to enable feature."
+  :type 'boolean
+  :group 'pophint)
 
 ;;;###autoload
 (defun pophint:do-direx-node () (interactive))
@@ -20,15 +24,21 @@
                                              (dired-find-file)
                                              (e2wm:pst-window-select-main)))))))
 
-
-;;;###autoload
-(defun pophint-config:dired-setup ()
+(defun pophint-dired:setup ()
   (add-to-list 'pophint:sources 'pophint:source-dired-node))
-
+(define-obsolete-function-alias 'pophint-config:dired-setup 'pophint-dired:setup "1.1.0")
 
 ;;;###autoload
-(add-hook 'dired-mode-hook 'pophint-config:dired-setup t)
+(defun pophint-dired:provision (activate)
+  (interactive)
+  (if activate
+      (add-hook 'dired-mode-hook 'pophint-dired:setup t)
+    (remove-hook 'dired-mode-hook 'pophint-dired:setup)))
+
+;;;###autoload
+(with-eval-after-load 'pophint
+  (when pophint-dired:enable (pophint-dired:provision t)))
 
 
-(provide 'pophint-config--dired)
-;;; pophint-config--dired.el ends here
+(provide 'pophint-dired)
+;;; pophint-dired.el ends here

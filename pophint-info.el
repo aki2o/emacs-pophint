@@ -1,5 +1,9 @@
 (require 'pophint)
 
+(defcustom pophint-info:enable t
+  "Whether to enable feature."
+  :type 'boolean
+  :group 'pophint)
 
 ;;;###autoload
 (defun pophint:do-info-ref () (interactive))
@@ -23,15 +27,21 @@
                             (goto-char (pophint:hint-startpt hint))
                             (Info-follow-nearest-node)))))))
 
-
-;;;###autoload
-(defun pophint-config:info-setup ()
+(defun pophint-info:setup ()
   (add-to-list 'pophint:sources 'pophint:source-info-ref))
-
+(define-obsolete-function-alias 'pophint-config:info-setup 'pophint-info:setup "1.1.0")
 
 ;;;###autoload
-(add-hook 'Info-mode-hook 'pophint-config:info-setup t)
+(defun pophint-info:provision (activate)
+  (interactive)
+  (if activate
+      (add-hook 'Info-mode-hook 'pophint-info:setup t)
+    (remove-hook 'Info-mode-hook 'pophint-info:setup)))
+
+;;;###autoload
+(with-eval-after-load 'pophint
+  (when pophint-info:enable (pophint-info:provision t)))
 
 
-(provide 'pophint-config--info)
-;;; pophint-config--info.el ends here
+(provide 'pophint-info)
+;;; pophint-info.el ends here

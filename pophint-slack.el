@@ -1,5 +1,9 @@
 (require 'pophint)
 
+(defcustom pophint-slack:enable t
+  "Whether to enable feature."
+  :type 'boolean
+  :group 'pophint)
 
 ;;;###autoload
 (defun pophint:do-slack-link () (interactive))
@@ -44,15 +48,21 @@
 
 (pophint:set-allwindow-command pophint:do-slack-link)
 
-
-;;;###autoload
-(defun pophint-config:slack-setup ()
+(defun pophint-slack:setup ()
   (add-to-list 'pophint:sources 'pophint:source-slack-link))
-
+(define-obsolete-function-alias 'pophint-config:slack-setup 'pophint-slack:setup "1.1.0")
 
 ;;;###autoload
-(add-hook 'slack-mode-hook 'pophint-config:slack-setup t)
+(defun pophint-slack:provision (activate)
+  (interactive)
+  (if activate
+      (add-hook 'slack-mode-hook 'pophint-slack:setup t)
+    (remove-hook 'slack-mode-hook 'pophint-slack:setup)))
+
+;;;###autoload
+(with-eval-after-load 'slack
+  (when pophint-slack:enable (pophint-slack:provision t)))
 
 
-(provide 'pophint-config--slack)
-;;; pophint-config--slack.el ends here
+(provide 'pophint-slack)
+;;; pophint-slack.el ends here

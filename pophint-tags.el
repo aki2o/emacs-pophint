@@ -1,19 +1,17 @@
 (require 'pophint)
-(require 'pophint-config--sym)
+(require 'pophint-sym)
 
-
-(defvar pophint-config:tag-jump-current-mode nil)
-
+(defvar pophint-tags--current-mode nil)
 
 ;;;###autoload
-(defmacro* pophint-config:set-tag-jump-command (command &key point-arg-index)
+(defmacro* pophint-tags:advice-command (command &key point-arg-index)
   "Set advice to move the point selected hint-tip before COMMAND.
 
 If COMMAND receives point by interactive, give the argument index as POINT-ARG-INDEX."
   (declare (indent 0))
   `(defadvice ,command (around do-pophint activate)
      (pophint--trace "start as substitute for %s" (symbol-name ',command))
-     (let ((pophint-config:tag-jump-current-mode major-mode))
+     (let ((pophint-tags--current-mode major-mode))
        (lexical-let ((currwnd (get-buffer-window))
                      (currpt (point))
                      (startpt (progn
@@ -23,7 +21,7 @@ If COMMAND receives point by interactive, give the argument index as POINT-ARG-I
          (pophint:do :allwindow t
                      :direction 'around
                      :source `((activebufferp . (lambda (b)
-                                                  (eq pophint-config:tag-jump-current-mode
+                                                  (eq pophint-tags--current-mode
                                                       (buffer-local-value 'major-mode b))))
                                ,@pophint:source-symbol)
                      :action-name "TagJump"
@@ -43,7 +41,8 @@ If COMMAND receives point by interactive, give the argument index as POINT-ARG-I
                                             (eq (window-point currwnd) startpt))
                                    ;; if jumped into other window, move active window point to before jump
                                    (set-window-point currwnd currpt)))))))))
+(define-obsolete-function-alias 'pophint-config:set-tag-jump-command 'pophint-tags:advice-command "1.1.0")
 
 
-(provide 'pophint-config--tags)
-;;; pophint-config--tags.el ends here
+(provide 'pophint-tags)
+;;; pophint-tags.el ends here

@@ -1,23 +1,19 @@
 (require 'rx)
 (require 'pophint)
 
+(defcustom pophint-line:enable t
+  "Whether to enable feature."
+  :type 'boolean
+  :group 'pophint)
 
-;;;###autoload
-(defvar pophint-config:regexp-one-line
+(defvar pophint-line--regexp-one-line
   (rx-to-string `(and bol (* (syntax whitespace)) (group (+ not-newline)))))
 
-
-;;;###autoload
 (pophint:defsource :name "one-line"
                    :description "One line."
                    :source '((shown . "Line")
-                             (regexp . pophint-config:regexp-one-line)))
+                             (regexp . pophint-line--regexp-one-line)))
 
-;;;###autoload
-(add-to-list 'pophint:global-sources 'pophint:source-one-line t)
-
-
-;;;###autoload
 (pophint:defsource
   :name "comment-line"
   :description "Part of `font-lock-comment-face' in line"
@@ -34,8 +30,20 @@
                               return `(:startpt ,startpt :endpt ,endpt :value ,value))))))
 
 ;;;###autoload
-(add-to-list 'pophint:global-sources 'pophint:source-comment-line t)
+(defun pophint-line:provision (activate)
+  (interactive)
+  (if activate
+      (progn
+        (add-to-list 'pophint:global-sources 'pophint:source-one-line t)
+        (add-to-list 'pophint:global-sources 'pophint:source-comment-line t))
+    (setq pophint:global-sources
+          (remove 'pophint:source-one-line
+                  (remove 'pophint:source-comment-line pophint:global-sources)))))
+
+;;;###autoload
+(with-eval-after-load 'pophint
+  (when pophint-line:enable (pophint-line:provision t)))
 
 
-(provide 'pophint-config--line)
-;;; pophint-config--line.el ends here
+(provide 'pophint-line)
+;;; pophint-line.el ends here

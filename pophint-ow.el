@@ -1,6 +1,10 @@
 (require 'pophint)
-(require 'pophint-config---util)
 
+(defcustom pophint-ow:enable t
+  "Whether to enable feature."
+  :type 'boolean
+  :group 'pophint)
+(make-obsolete 'pophint-config:set-do-when-other-window 'pophint-ow:enable "1.1.0")
 
 ;;;###autoload
 (defun pophint:do-each-window () (interactive))
@@ -16,32 +20,26 @@
 (pophint:set-allwindow-command pophint:do-each-window)
 
 
-;;;###autoload
-(defvar pophint-config:active-when-other-window-p pophint-config:effect-default-activated)
-
-;;;###autoload
 (defadvice other-window (around do-pophint disable)
-  (if (and (interactive-p)
-           pophint-config:active-when-other-window-p
+  (if (and (called-interactively-p 'any)
            (> (length (window-list)) 2))
       (let ((pophint:use-pos-tip t))
         (pophint:do-each-window))
     ad-do-it))
 
-;;;###autoload
-(when pophint-config:active-when-other-window-p
-  (ad-enable-advice 'other-window 'around 'do-pophint)
-  (ad-activate 'other-window))
 
 ;;;###autoload
-(defun pophint-config:set-do-when-other-window (activate)
-  "Whether do pop-up when `other-window'."
+(defun pophint-ow:provision (activate)
+  (interactive)
   (if activate
       (ad-enable-advice 'other-window 'around 'do-pophint)
     (ad-disable-advice 'other-window 'around 'do-pophint))
-  (ad-activate 'other-window)
-  (setq pophint-config:active-when-other-window-p activate))
+  (ad-activate 'other-window))
+
+;;;###autoload
+(with-eval-after-load 'pophint
+  (when pophint-ow:enable (pophint-ow:provision t)))
 
 
-(provide 'pophint-config--ow)
-;;; pophint-config--ow.el ends here
+(provide 'pophint-ow)
+;;; pophint-ow.el ends here

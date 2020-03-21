@@ -1,13 +1,16 @@
 (require 'rx)
 (require 'pophint)
-(require 'pophint-config--quote)
+(require 'pophint-quote)
 
+(defcustom pophint-elisp:enable t
+  "Whether to enable feature."
+  :type 'boolean
+  :group 'pophint)
 
-(defvar pophint-config:regexp-sexp-start
+(defvar pophint-elisp--regexp-sexp-start
   (rx-to-string `(and (or bos
                           (not (any "(")))
                       (group "(" (not (any ") \t\r\n"))))))
-
 
 ;;;###autoload
 (defun pophint:do-sexp () (interactive))
@@ -17,7 +20,7 @@
     :description "Sexp on emacs-lisp-mode."
     :source '((shown . "Sexp")
               (method .(lambda ()
-                         (when (re-search-forward pophint-config:regexp-sexp-start nil t)
+                         (when (re-search-forward pophint-elisp--regexp-sexp-start nil t)
                            (save-excursion
                              (let* ((startpt (match-beginning 1))
                                     (endpt (ignore-errors (goto-char startpt) (forward-sexp) (point)))
@@ -25,16 +28,22 @@
                                `(:startpt ,startpt :endpt ,endpt :value ,value))))))
               (highlight . nil))))
 
-
-;;;###autoload
-(defun pophint-config:elisp-setup ()
+(defun pophint-elisp:setup ()
   (add-to-list 'pophint:sources 'pophint:source-sexp)
-  (setq pophint-config:exclude-quote-chars '("'" "`")))
-
+  (setq pophint-quote:exclude-quote-chars '("'" "`")))
+(define-obsolete-function-alias 'pophint-config:elisp-setup 'pophint-elisp:setup "1.1.0")
 
 ;;;###autoload
-(add-hook 'emacs-lisp-mode-hook 'pophint-config:elisp-setup t)
+(defun pophint-elisp:provision (activate)
+  (interactive)
+  (if activate
+      (add-hook 'emacs-lisp-mode-hook 'pophint-elisp:setup t)
+    (remove-hook 'emacs-lisp-mode-hook 'pophint-elisp:setup)))
+
+;;;###autoload
+(with-eval-after-load 'pophint
+  (when pophint-elisp:enable (pophint-elisp:provision t)))
 
 
-(provide 'pophint-config--el)
-;;; pophint-config--el.el ends here
+(provide 'pophint-elisp)
+;;; pophint-elisp.el ends here

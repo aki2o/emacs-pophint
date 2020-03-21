@@ -1,61 +1,24 @@
 (require 'e2wm nil t)
 (require 'pophint)
-(require 'pophint-config---util)
-(require 'pophint-config--ow)
-(require 'pophint-config--widget)
+(require 'pophint-ow)
+(require 'pophint-widget)
 
+(defcustom pophint-e2wm:enable t
+  "Whether to enable feature."
+  :type 'boolean
+  :group 'pophint)
+(make-obsolete 'pophint-config:set-automatically-when-e2wm-array 'pophint-e2wm:enable "1.1.0")
+
+(defcustom pophint-e2wm:array-quit-immediately t
+  "Whether do `e2wm:dp-array-goto-prev-pst-command' immediately in array perspective when selection."
+  :type 'boolean
+  :group 'pophint)
+(make-obsolete 'pophint-config:set-goto-immediately-when-e2wm-array 'pophint-e2wm:array-quit-immediately "1.1.0")
 
 ;;;###autoload
 (defun pophint:do-situationally-e2wm () (interactive))
 (with-no-warnings
   (pophint:defsituation e2wm))
-
-
-;;;###autoload
-(defvar pophint-config:goto-immediately-when-e2wm-array-p pophint-config:effect-default-activated)
-
-;;;###autoload
-(defun pophint-config:set-goto-immediately-when-e2wm-array (activate)
-  "Whether do `e2wm:dp-array-goto-prev-pst-command' immediately
-when select hint-tip of `other-window' in array perspective of `e2wm.el'."
-  (setq pophint-config:goto-immediately-when-e2wm-array-p activate))
-
-;;;###autoload
-(defun pophint-config:e2wm-array-other-window ()
-  "Do `pophint:do-each-window' in array perspective of `e2wm.el'."
-  (interactive)
-  (if (<= (length (window-list)) 3)
-      (e2wm:dp-array-move-right-command)
-    (let ((pophint:use-pos-tip t))
-      (if (and (pophint:do-each-window)
-               pophint-config:goto-immediately-when-e2wm-array-p)
-          (e2wm:dp-array-goto-prev-pst-command)
-        (e2wm:dp-array-update-summary)))))
-
-
-;;;###autoload
-(defvar pophint-config:active-when-e2wm-array-p pophint-config:effect-default-activated)
-
-;;;###autoload
-(defadvice e2wm:dp-array (after do-pophint disable)
-  (when (and (interactive-p)
-             pophint-config:active-when-e2wm-array-p)
-    (pophint-config:e2wm-array-other-window)))
-
-;;;###autoload
-(when pophint-config:active-when-e2wm-array-p
-  (ad-enable-advice 'e2wm:dp-array 'after 'do-pophint)
-  (ad-activate 'e2wm:dp-array))
-
-;;;###autoload
-(defun pophint-config:set-automatically-when-e2wm-array (activate)
-  "Whether do pop-up when `e2wm:dp-array'."
-  (if activate
-      (ad-enable-advice 'e2wm:dp-array 'after 'do-pophint)
-    (ad-disable-advice 'e2wm:dp-array 'after 'do-pophint))
-  (ad-activate 'e2wm:dp-array)
-  (setq pophint-config:active-when-e2wm-array-p activate))
-
 
 ;;;###autoload
 (defun pophint:do-e2wm-files () (interactive))
@@ -75,7 +38,6 @@ when select hint-tip of `other-window' in array perspective of `e2wm.el'."
                           (goto-char (pophint:hint-startpt hint))
                           (e2wm:def-plugin-files-select-command))))))
 
-
 ;;;###autoload
 (defun pophint:do-e2wm-history () (interactive))
 (with-no-warnings
@@ -93,7 +55,6 @@ when select hint-tip of `other-window' in array perspective of `e2wm.el'."
                           (select-window (pophint:hint-window hint))
                           (goto-char (pophint:hint-startpt hint))
                           (e2wm:def-plugin-history-list-select-command))))))
-
 
 ;;;###autoload
 (defun pophint:do-e2wm-history2 () (interactive))
@@ -114,7 +75,6 @@ when select hint-tip of `other-window' in array perspective of `e2wm.el'."
                           (e2wm:def-plugin-history-list2-select-command)
                           (e2wm:pst-window-select-main))))))
 
-
 ;;;###autoload
 (defun pophint:do-e2wm-imenu () (interactive))
 (with-no-warnings
@@ -132,7 +92,6 @@ when select hint-tip of `other-window' in array perspective of `e2wm.el'."
                           (select-window (pophint:hint-window hint))
                           (goto-char (pophint:hint-startpt hint))
                           (e2wm:def-plugin-imenu-jump-command))))))
-
 
 ;;;###autoload
 (defun pophint:do-e2wm-perspb () (interactive))
@@ -152,7 +111,6 @@ when select hint-tip of `other-window' in array perspective of `e2wm.el'."
                           (goto-char (pophint:hint-startpt hint))
                           (e2wm-perspb:select-command))))))
 
-
 ;;;###autoload
 (defun pophint:do-e2wm-sww () (interactive))
 (with-no-warnings
@@ -168,7 +126,6 @@ when select hint-tip of `other-window' in array perspective of `e2wm.el'."
                           (widget-apply (widget-at) :action)
                           (e2wm:pst-window-select-main)))
               ,@pophint:source-widget)))
-
 
 ;;;###autoload
 (defun pophint:do-e2wm-term-history () (interactive))
@@ -194,17 +151,50 @@ when select hint-tip of `other-window' in array perspective of `e2wm.el'."
                           (e2wm-term:history-sync)
                           (e2wm-term:history-send-pt-point))))))
 
+;;;###autoload
+(defun pophint-e2wm:array-other-window ()
+  "Do `pophint:do-each-window' in array perspective of `e2wm.el'."
+  (interactive)
+  (if (<= (length (window-list)) 3)
+      (e2wm:dp-array-move-right-command)
+    (let ((pophint:use-pos-tip t))
+      (if (and (pophint:do-each-window)
+               pophint-e2wm:array-quit-immediately)
+          (e2wm:dp-array-goto-prev-pst-command)
+        (e2wm:dp-array-update-summary)))))
+(define-obsolete-function-alias 'pophint-config:e2wm-array-other-window 'pophint-e2wm:array-other-window "1.1.0")
+
+
+(defadvice e2wm:dp-array (after do-pophint disable)
+  (when (interactive-p)
+    (pophint-e2wm:array-other-window)))
+
+
+(defun pophint-e2wm:setup-array-key (activate)
+  (eval-after-load "e2wm"
+    `(progn
+       (let ((key (ignore-errors
+                    (key-description (nth 0 (where-is-internal 'other-window global-map))))))
+         (when (and key
+                    (keymapp e2wm:dp-array-minor-mode-map))
+           (define-key
+             e2wm:dp-array-minor-mode-map
+             (read-kbd-macro key)
+             (if ,activate 'pophint-e2wm:array-other-window 'other-window)))))))
 
 ;;;###autoload
-(eval-after-load "e2wm"
-  `(progn
-     (let ((key (ignore-errors
-                  (key-description (nth 0 (where-is-internal 'other-window global-map))))))
-       (when (and key
-                  (keymapp e2wm:dp-array-minor-mode-map))
-         (define-key e2wm:dp-array-minor-mode-map
-           (read-kbd-macro key) 'pophint-config:e2wm-array-other-window)))))
+(defun pophint-e2wm:provision (activate)
+  (interactive)
+  (if activate
+      (ad-enable-advice 'e2wm:dp-array 'after 'do-pophint)
+    (ad-disable-advice 'e2wm:dp-array 'after 'do-pophint))
+  (ad-activate 'e2wm:dp-array)
+  (pophint-e2wm:setup-array-key activate))
+
+;;;###autoload
+(with-eval-after-load 'e2wm
+  (when pophint-e2wm:enable (pophint-e2wm:provision t)))
 
 
-(provide 'pophint-config--e2wm)
-;;; pophint-config--e2wm.el ends here
+(provide 'pophint-e2wm)
+;;; pophint-e2wm.el ends here

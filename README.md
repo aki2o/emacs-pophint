@@ -22,7 +22,6 @@ The simplest case is just move.
 ![demo1](image/demo1.gif)
 
 You can configure easily *LOCATION*, *ACTION* and more.  
-Then, they are configured already in `pophint-config.el`.  
 Here is a part of them.  
 
 ![demo2](image/demo2.gif)
@@ -50,7 +49,6 @@ see Bundled Function section in <https://github.com/aki2o/emacs-pophint/wiki>.
 
 ```lisp
 (auto-install-from-url "https://raw.github.com/aki2o/emacs-pophint/master/pophint.el")
-(auto-install-from-url "https://raw.github.com/aki2o/emacs-pophint/master/pophint-config.el")
 ```
 -   In this case, you need to install each of the following dependency.
 
@@ -77,6 +75,5 @@ see Configuration section in <https://github.com/aki2o/emacs-pophint/wiki>.
 -   popup.el &#x2026; 0.5.0
 -   log4e.el &#x2026; 0.1
 -   yaxception.el &#x2026; 0.1
--   w3m.el &#x2026; 1.4.472
 
 **Enjoy!!!**

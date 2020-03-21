@@ -1,5 +1,9 @@
 (require 'pophint)
 
+(defcustom pophint-help:enable t
+  "Whether to enable feature."
+  :type 'boolean
+  :group 'pophint)
 
 ;;;###autoload
 (defun pophint:do-help-btn () (interactive))
@@ -25,15 +29,21 @@
                             (goto-char (pophint:hint-startpt hint))
                             (push-button)))))))
 
-
-;;;###autoload
-(defun pophint-config:help-setup ()
+(defun pophint-help:setup ()
   (add-to-list 'pophint:sources 'pophint:source-help-btn))
-
+(define-obsolete-function-alias 'pophint-config:help-setup 'pophint-help:setup "1.1.0")
 
 ;;;###autoload
-(add-hook 'help-mode-hook 'pophint-config:help-setup t)
+(defun pophint-help:provision (activate)
+  (interactive)
+  (if activate
+      (add-hook 'help-mode-hook 'pophint-help:setup t)
+    (remove-hook 'help-mode-hook 'pophint-help:setup)))
+
+;;;###autoload
+(with-eval-after-load 'pophint
+  (when pophint-help:enable (pophint-help:provision t)))
 
 
-(provide 'pophint-config--help)
-;;; pophint-config--help.el ends here
+(provide 'pophint-help)
+;;; pophint-help.el ends here

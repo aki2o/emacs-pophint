@@ -5,7 +5,7 @@
 ;; Author: Hiroaki Otsu <ootsuhiroaki@gmail.com>
 ;; Keywords: popup
 ;; URL: https://github.com/aki2o/emacs-pophint
-;; Version: 1.0.1
+;; Version: 1.1.0
 ;; Package-Requires: ((log4e "0.2.0") (yaxception "0.3"))
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -242,6 +242,12 @@ If nil, it means limitless."
   :type 'boolean
   :group 'pophint)
 
+(defcustom pophint:inch-forward-length 3
+  "Size of chars to make next hint by `'"
+  :type 'integer
+  :group 'pophint)
+(make-obsolete 'pophint-config:inch-length 'pophint:inch-forward-length "1.1.0")
+
 (defface pophint:tip-face
   '((t (:background "khaki1" :foreground "black" :bold t)))
   "Face for the pop-up hint."
@@ -269,23 +275,17 @@ If nil, it means limitless."
   "Face for the part of active source/direction in prompt."
   :group 'pophint)
 
-;;;###autoload
 (defvar pophint:sources nil
   "Buffer local sources for pop-up hint tip flexibly.")
-;;;###autoload
 (make-variable-buffer-local 'pophint:sources)
 
-;;;###autoload
 (defvar pophint:global-sources nil
   "Global sources for pop-up hint tip flexibly")
 
-;;;###autoload
 (defvar pophint:dedicated-sources nil
   "Dedicated sources for pop-up hint tip in particular situation.")
 
-;;;###autoload
 (defstruct pophint:hint window popup overlay (startpt 0) (endpt 0) (value ""))
-;;;###autoload
 (defstruct pophint:action name action)
 
 
@@ -1346,6 +1346,34 @@ FUNC is symbol not quoted. e.g. (pophint:set-not-allwindow-command pophint:do-fl
   "Get current direction of searching next point for pop-up hint-tip."
   (when (pophint--condition-p pophint--last-condition)
     (pophint--condition-direction pophint--last-condition)))
+
+;;;###autoload
+(defun* pophint:inch-forward (&key (length pophint:inch-forward-length))
+  (let* ((currpt (point))
+         (pt1 (save-excursion
+                (cl-loop for pt = (progn (forward-word 1) (point))
+                         until (or (>= (- pt currpt) length)
+                                   (= pt (point-max))))
+                (point)))
+         (pt2 (save-excursion
+                (cl-loop for re in '("\\w+" "\\s-+" "\\W+" "\\w+")
+                         for pt = (progn (re-search-forward (concat "\\=" re) nil t)
+                                         (point))
+                         if (>= (- pt currpt) length)
+                         return pt
+                         finally return pt1))))
+    (goto-char (if (> pt1 pt2) pt2 pt1))))
+(define-obsolete-function-alias 'pophint-config:inch-forward 'pophint:inch-forward "1.1.0")
+
+;;;###autoload
+(defun* pophint:make-hint-with-inch-forward (&key limit (length pophint:inch-forward-length))
+  (let ((currpt (point))
+        (nextpt (progn (pophint:inch-forward) (point))))
+    (when (and (or (not limit)
+                   (<= currpt limit))
+               (>= (- nextpt currpt) length))
+      `(:startpt ,currpt :endpt ,nextpt :value ,(buffer-substring-no-properties currpt nextpt)))))
+(define-obsolete-function-alias 'pophint-config:make-hint-with-inch-forward 'pophint:make-hint-with-inch-forward "1.1.0")
 
 
 ;;;;;;;;;;;;;;;;;;

@@ -24,7 +24,6 @@
   [[file:image/demo1.gif][demo1]]
 
   You can configure easily /LOCATION/, /ACTION/ and more.  
-  Then, they are configured already in =pophint-config.el=.  
   Here is a part of them.  
 
   [[file:image/demo2.gif][demo2]]
@@ -53,7 +52,6 @@
     
     #+BEGIN_SRC lisp
 (auto-install-from-url "https://raw.github.com/aki2o/emacs-pophint/master/pophint.el")
-(auto-install-from-url "https://raw.github.com/aki2o/emacs-pophint/master/pophint-config.el")
     #+END_SRC
 
     - In this case, you need to install each of the following dependency.
@@ -84,7 +82,6 @@
   - popup.el ... 0.5.0
   - log4e.el ... 0.1
   - yaxception.el ... 0.1
-  - w3m.el ... 1.4.472
     
     
   *Enjoy!!!*
