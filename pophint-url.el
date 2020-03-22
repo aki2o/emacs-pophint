@@ -2,6 +2,7 @@
 (require 'pophint)
 (require 'ffap nil t)
 
+;;;###autoload
 (defcustom pophint-url:enable t
   "Whether to enable feature."
   :type 'boolean

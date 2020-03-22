@@ -2,6 +2,7 @@
 (require 'rx)
 (require 'pophint)
 
+;;;###autoload
 (defcustom pophint-direx:enable t
   "Whether to enable feature."
   :type 'boolean

@@ -1,5 +1,6 @@
 (require 'pophint)
 
+;;;###autoload
 (defcustom pophint-sym:enable t
   "Whether to enable feature."
   :type 'boolean

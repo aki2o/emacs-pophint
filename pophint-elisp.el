@@ -2,6 +2,7 @@
 (require 'pophint)
 (require 'pophint-quote)
 
+;;;###autoload
 (defcustom pophint-elisp:enable t
   "Whether to enable feature."
   :type 'boolean

@@ -1,6 +1,7 @@
 (require 'rx)
 (require 'pophint)
 
+;;;###autoload
 (defcustom pophint-line:enable t
   "Whether to enable feature."
   :type 'boolean

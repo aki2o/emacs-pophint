@@ -1,6 +1,7 @@
 (require 'pophint)
 (require 'pophint-region)
 
+;;;###autoload
 (defcustom pophint-isearch:enable t
   "Whether to enable feature."
   :type 'boolean

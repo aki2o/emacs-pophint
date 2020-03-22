@@ -3,6 +3,7 @@
 (require 'pophint-ow)
 (require 'pophint-widget)
 
+;;;###autoload
 (defcustom pophint-e2wm:enable t
   "Whether to enable feature."
   :type 'boolean

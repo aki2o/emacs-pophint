@@ -2,6 +2,7 @@
 (require 'pophint)
 (require 'pophint-yank)
 
+;;;###autoload
 (defcustom pophint-w3m:enable t
   "Whether to enable feature."
   :type 'boolean

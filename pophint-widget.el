@@ -1,6 +1,7 @@
 (require 'cl-lib)
 (require 'pophint)
 
+;;;###autoload
 (defcustom pophint-widget:enable t
   "Whether to enable feature."
   :type 'boolean

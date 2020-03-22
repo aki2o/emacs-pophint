@@ -1,6 +1,7 @@
 (require 'pophint)
 (require 'pophint-quote)
 
+;;;###autoload
 (defcustom pophint-vb:enable t
   "Whether to enable feature."
   :type 'boolean
