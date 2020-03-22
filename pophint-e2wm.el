@@ -1,4 +1,7 @@
-(require 'e2wm nil t)
+(require 'e2wm)
+(require 'e2wm-perspb)
+(require 'e2wm-sww)
+(require 'e2wm-term)
 (require 'pophint)
 (require 'pophint-ow)
 (require 'pophint-widget)

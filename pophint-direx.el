@@ -1,4 +1,4 @@
-(require 'direx nil t)
+(require 'direx)
 (require 'rx)
 (require 'pophint)
 
