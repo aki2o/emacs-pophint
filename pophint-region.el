@@ -1,11 +1,5 @@
 (require 'pophint)
 
-(defcustom pophint-region:kill-ring-save-p t
-  "Whether to save into kill ring by `pophint-region:kill'/`pophint-region:backward-kill'."
-  :type 'boolean
-  :group 'pophint)
-(make-obsolete 'pophint-config:set-kill-region-kill-ring-save 'pophint-region:kill-ring-save-p "1.1.0")
-
 (defvar pophint-region--start nil)
 (defvar pophint-region--end nil)
 (defvar pophint-region--user-start nil)
@@ -69,34 +63,47 @@
 
 ;;;###autoload
 (defun pophint-region:kill ()
-  "Kill/Delete region by selecting hint-tip."
+  "Kill region by selecting hint-tip."
   (interactive)
-  (lexical-let ((func (if pophint-region:kill-ring-save-p
-                          'kill-region
-                        'delete-region)))
-    (pophint-region:narrow-or-wide
-     :narrow-limit (point-at-eol)
-     :use-pos-tip t
-     :action-name (symbol-name func)
-     :action (lambda (hint)
-               (funcall func (point) (pophint:hint-startpt hint))))))
+  (pophint-region:narrow-or-wide
+   :narrow-limit (point-at-eol)
+   :use-pos-tip t
+   :action-name "kill-region"
+   :action (lambda (hint) (kill-region (point) (pophint:hint-startpt hint)))))
 (define-obsolete-function-alias 'pophint-config:kill-region 'pophint-region:kill "1.1.0")
 
 ;;;###autoload
 (defun pophint-region:backward-kill ()
-  "Kill/Delete region by selecting hint-tip."
+  "Kill region by selecting hint-tip."
   (interactive)
-  (lexical-let ((func (if pophint-region:kill-ring-save-p
-                          'kill-region
-                        'delete-region)))
-    (pophint-region:narrow-or-wide
-     :backward-p t
-     :narrow-limit (point-at-bol)
-     :use-pos-tip t
-     :action-name (symbol-name func)
-     :action (lambda (hint)
-               (funcall func (pophint:hint-startpt hint) (point))))))
+  (pophint-region:narrow-or-wide
+   :backward-p t
+   :narrow-limit (point-at-bol)
+   :use-pos-tip t
+   :action-name "kill-region"
+   :action (lambda (hint) (kill-region (pophint:hint-startpt hint) (point)))))
 (define-obsolete-function-alias 'pophint-config:backward-kill-region 'pophint-region:backward-kill "1.1.0")
+
+;;;###autoload
+(defun pophint-region:delete ()
+  "Delete region by selecting hint-tip."
+  (interactive)
+  (pophint-region:narrow-or-wide
+   :narrow-limit (point-at-eol)
+   :use-pos-tip t
+   :action-name "delete-region"
+   :action (lambda (hint) (delete-region (point) (pophint:hint-startpt hint)))))
+
+;;;###autoload
+(defun pophint-region:backward-delete ()
+  "Delete region by selecting hint-tip."
+  (interactive)
+  (pophint-region:narrow-or-wide
+   :backward-p t
+   :narrow-limit (point-at-bol)
+   :use-pos-tip t
+   :action-name "delete-region"
+   :action (lambda (hint) (delete-region (pophint:hint-startpt hint) (point)))))
 
 
 (provide 'pophint-region)
