@@ -5,7 +5,7 @@
 ;; Author: Hiroaki Otsu <ootsuhiroaki@gmail.com>
 ;; Keywords: popup
 ;; URL: https://github.com/aki2o/emacs-pophint
-;; Version: 1.1.1
+;; Version: 1.2.0
 ;; Package-Requires: ((log4e "0.2.0") (yaxception "0.3"))
 
 ;; This program is free software; you can redistribute it and/or modify
