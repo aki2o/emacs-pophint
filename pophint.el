@@ -5,8 +5,8 @@
 ;; Author: Hiroaki Otsu <ootsuhiroaki@gmail.com>
 ;; Keywords: popup
 ;; URL: https://github.com/aki2o/emacs-pophint
-;; Version: 1.2.0
-;; Package-Requires: ((log4e "0.2.0") (yaxception "0.3"))
+;; Version: 1.3.0
+;; Package-Requires: ((log4e "0.3.3") (yaxception "0.3"))
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -754,7 +754,7 @@ If nil, it means limitless."
 
 (defsubst pophint--hintable-location-p (direction currpt startpt endpt)
   (when (and (not (ignore-errors (invisible-p startpt)))
-             (not (ignore-errors (invisible-p endpt)))
+             (not (ignore-errors (invisible-p (1- endpt))))
              (case direction
                (around   t)
                (forward  (>= startpt currpt))
