@@ -16,8 +16,7 @@
        (pophint--trace "start as substitute for %s" (symbol-name ',function))
        (setq ad-return-value
              (pophint:do-flexibly :action-name "SelectThing"
-                                  :action (lambda (hint)
-                                            (pophint:hint-value hint)))))))
+                                  :action 'value)))))
 (define-obsolete-function-alias 'pophint-config:set-thing-at-point-function 'pophint-thing:advice-thing-at-point-function "1.1.0")
 
 ;;;###autoload

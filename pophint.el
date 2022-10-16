@@ -392,8 +392,7 @@ If nil, it means limitless."
                                             (1- (point-max))))
                               (endpt (max pophint--current-point (1+ startpt))))
                          `(:startpt ,startpt :endpt ,endpt :value ""))))))
-    (action . (lambda (hint)
-                (pophint:hint-window hint)))))
+    (action . hint)))
 
 
 ;;;;;;;;;;;;;
@@ -570,14 +569,32 @@ If nil, it means limitless."
          (pophint--last-context-condition-hash (make-hash-table :test 'equal)))
      ,@body))
 
+(defvar pophint--selected-action nil)
+(defvar pophint--selected-hint nil)
+
 (defun pophint--do-action (hint action)
   (when (pophint:hint-p hint)
     (let* ((tip (pophint:hint-popup hint))
-           (selected (pophint:hint-value hint))
-           (action (pophint--compile-to-function action)))
+           (selected (pophint:hint-value hint)))
       (pophint--debug "start action. selected:[%s] action:%s" selected action)
       (pophint--delete hint)
-      (when (functionp action) (funcall action hint)))))
+      (cond ((eq action 'value)
+             (pophint:hint-value hint))
+            ((eq action 'point)
+             (pophint:hint-startpt hint))
+            ((eq action 'hint)
+             hint)
+            ((functionp action)
+             (setq pophint--selected-action action)
+             (setq pophint--selected-hint hint)
+             (run-at-time 0 nil (lambda ()
+                                  (let ((action pophint--selected-action)
+                                        (hint pophint--selected-hint))
+                                    (setq pophint--selected-action nil)
+                                    (setq pophint--selected-hint nil)
+                                    (funcall action hint)))))
+            (t
+             (error "Unsupported action"))))))
 
 (defmacro pophint--maybe-kind-mode-buffer-p (buf &rest modes)
   (declare (indent 0))
@@ -915,7 +932,8 @@ If nil, it means limitless."
                             (next-window)))))
       (if (<= (length (window-list)) 2)
           (funcall basic-getter window)
-        (or (pophint:do :source pophint--next-window-source :allwindow t :use-pos-tip t)
+        (or (pophint--awhen (pophint:do :source pophint--next-window-source :allwindow t :use-pos-tip t)
+              (pophint:hint-window it))
             (progn
               (pophint--warn "failed get next window by pophint:do")
               (funcall basic-getter window)))))))
@@ -1157,6 +1175,10 @@ SOURCE is alist. The member is the following.
  - action        ... It's function to call when finish hint-tip selection.
                      If nil, its value is `pophint--default-action'.
                      It receive the object of `pophint:hint' selected by user.
+                     Also it accepts one of the symbols 'value, 'point or 'hints, and returns
+                       - value ... `pophint:hint-value' of the selected
+                       - point ... `pophint:hint-startpt' of the selected
+                       - hint  ... `pophint:hint' as the selected
                  
  - method        ... It's function to find next point of pop-up.
                      If nil, its value is `re-search-forward', and regexp is used.
@@ -1398,7 +1420,7 @@ SOURCE is alist or symbol of alist. About its value, see `pophint:defsource'.
  If nil, its value is the first of SOURCES or `pophint--default-source'.
  If non-nil, `pophint--default-source' isn't used for SOURCES.
 SOURCES is list of SOURCE. If this length more than 1, enable switching SOURCE when pop-up hint.
-ACTION is function. About this, see action of SOURCE for `pophint:defsource'. If nil, it's used.
+ACTION is function or symbol. About this, see action of SOURCE for `pophint:defsource'. If nil, it's used.
 ACTION-NAME is string. About this, see name of `pophint:defaction'.
 DIRECTION is symbol. The allowed value is the following.
  - forward  ... seek the pop-up point moving forward until `pophint:popup-max-tips'.

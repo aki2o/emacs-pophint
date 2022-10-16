@@ -45,7 +45,7 @@
   (pophint:defaction :key "y"
                      :name "Yank"
                      :description "Yank the text of selected hint-tip."
-                     :action 'pophint-yank--yank-action))
+                     :action pophint-yank--yank-action))
 
 ;;;###autoload
 (defun pophint:do-flexibly-rangeyank () (interactive))
@@ -53,7 +53,7 @@
   (pophint:defaction :key "Y"
                      :name "RangeYank"
                      :description "Yank the text getting end point by do pop-up at the selected point."
-                     :action 'pophint-yank--rangeyank-action))
+                     :action pophint-yank--rangeyank-action))
 
 ;;;###autoload
 (defun pophint:do-rangeyank () (interactive))
@@ -62,7 +62,7 @@
     :name "RangeYank"
     :description "Yank the text getting end point by do pop-up at the selected point."
     :source `((shown . "RangeYank")
-              (action . pophint-yank--rangeyank-action)
+              (action . ,pophint-yank--rangeyank-action)
               ,@pophint--default-source)))
 
 
