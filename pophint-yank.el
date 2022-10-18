@@ -35,9 +35,14 @@
                                     (method . pophint:make-hint-with-inch-forward))
                           :action-name "Yank"
                           :action (lambda (hint)
-                                    (when (number-or-marker-p pophint-yank--startpt)
-                                      (kill-new (buffer-substring-no-properties pophint-yank--startpt
-                                                                                (pophint:hint-startpt hint)))))))))))))
+                                    (let ((wnd (pophint:hint-window hint)))
+                                      (when (and (windowp wnd)
+                                                 (window-live-p wnd)
+                                                 (number-or-marker-p pophint-yank--startpt))
+                                        (with-selected-window wnd
+                                          (kill-new (buffer-substring-no-properties
+                                                     pophint-yank--startpt
+                                                     (pophint:hint-startpt hint)))))))))))))))
 
 ;;;###autoload
 (defun pophint:do-flexibly-yank () (interactive))
