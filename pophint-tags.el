@@ -4,7 +4,7 @@
 (defvar pophint-tags--current-mode nil)
 
 ;;;###autoload
-(defmacro* pophint-tags:advice-command (command &key point-arg-index)
+(defmacro* pophint-tags:advice-command (command &key (point-arg-index nil))
   "Set advice to move the point selected hint-tip before COMMAND.
 
 If COMMAND receives point by interactive, give the argument index as POINT-ARG-INDEX."
@@ -31,8 +31,8 @@ If COMMAND receives point by interactive, give the argument index as POINT-ARG-I
        (when wnd
          (with-selected-window wnd
            (goto-char (pophint:hint-startpt hint))
-           (when point-arg-index
-             (ad-set-arg point-arg-index (point)))
+           (when ,point-arg-index
+             (ad-set-arg ,point-arg-index (point)))
            ad-do-it)
          (when (and (window-live-p wnd)
                     (eq (window-point wnd) (pophint:hint-startpt hint)))
