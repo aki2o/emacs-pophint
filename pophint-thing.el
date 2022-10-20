@@ -7,7 +7,7 @@
 (make-obsolete 'pophint-config:thing-at-point-effect-enabled 'pophint-thing:enable-on-thing-at-point "1.1.0")
 
 ;;;###autoload
-(defmacro pophint-thing:advice-thing-at-point-function (function)
+(cl-defmacro pophint-thing:advice-thing-at-point-function (function)
   "Set advice to get thing by hint-tip as substitute for COMMAND."
   (declare (indent 0))
   `(defadvice ,function (around do-pophint activate)
@@ -20,7 +20,7 @@
 (define-obsolete-function-alias 'pophint-config:set-thing-at-point-function 'pophint-thing:advice-thing-at-point-function "1.1.0")
 
 ;;;###autoload
-(defmacro pophint-thing:defcommand-noadvice (command)
+(cl-defmacro pophint-thing:defcommand-noadvice (command)
   "Define a command named `pophint-thing:just-COMMAND' to do COMMAND without `pophint-thing:enable-on-thing-at-point'."
   (declare (indent 0))
   (let ((func-sym (intern (format "pophint-thing:just-%s" (symbol-name command))))

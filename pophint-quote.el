@@ -29,7 +29,7 @@ If exist the character that not be used for quote, set `pophint-quote:exclude-qu
 It's a buffer local variable and list like `pophint-quote:quote-chars'."
     :source '((shown . "Quoted")
               (method . (lambda ()
-                          (let* ((chars (loop for c in pophint-quote:quote-chars
+                          (let* ((chars (cl-loop for c in pophint-quote:quote-chars
                                               if (not (member c pophint-quote:exclude-quote-chars))
                                               collect c))
                                  (char-re (when chars (regexp-opt chars)))
@@ -37,7 +37,7 @@ It's a buffer local variable and list like `pophint-quote:quote-chars'."
                             (while (and (pophint-quote--quoted-point-p (point))
                                         re
                                         (re-search-forward re nil t)))
-                            (loop while (and re (re-search-forward re nil t))
+                            (cl-loop while (and re (re-search-forward re nil t))
                                   for word = (match-string-no-properties 1)
                                   for startpt = (point)
                                   for endpt = (or (when (and (< (point) (point-max))

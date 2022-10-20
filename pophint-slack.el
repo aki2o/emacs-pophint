@@ -19,7 +19,7 @@
               (requires . 1)
               (highlight . nil)
               (method . (lambda ()
-                          (loop while (not (eobp))
+                          (cl-loop while (not (eobp))
                                 for startpt = (point)
                                 for endpt = (next-property-change startpt)
                                 for face = (get-text-property startpt 'face)
@@ -35,11 +35,11 @@
                           ;; do async to avoid freeze maybe slack.el trouble
                           (run-with-idle-timer 0.2 nil
                                                '(lambda (commands)
-                                                  (loop for command in commands
+                                                  (cl-loop for command in commands
                                                         if (ignore-errors (call-interactively command) t) return t))
                                                (if (string= (pophint:hint-value hint) "(load more message)")
                                                    '(slack-room-load-prev-messages)
-                                                 (case (get-text-property (point) 'face)
+                                                 (cl-case (get-text-property (point) 'face)
                                                    (lui-button-face
                                                     '(push-button))
                                                    (slack-message-output-header

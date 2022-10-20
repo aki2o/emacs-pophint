@@ -30,7 +30,7 @@
                     (goto-char (pophint:hint-startpt hint))
                     (when pophint-mark:yank-immediately-on-marking-p
                       (kill-ring-save currpt (point)))))))
-    (case pophint-mark:direction
+    (cl-case pophint-mark:direction
       (forward
        (pophint-region:narrow-or-wide :narrow-limit (point-at-eol)
                                       :use-pos-tip nil

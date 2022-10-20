@@ -15,7 +15,7 @@
 (make-obsolete 'pophint-config:set-w3m-use-new-tab 'pophint-w3m:use-new-tab "1.1.0")
 
 (defun pophint-w3m--do-anchor-sentinel (method)
-  (let ((pophint-w3m:use-new-tab (case method
+  (let ((pophint-w3m:use-new-tab (cl-case method
                                    ('open   nil)
                                    ('tab    t)
                                    ('invert (not pophint-w3m:use-new-tab)))))

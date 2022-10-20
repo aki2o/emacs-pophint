@@ -14,7 +14,7 @@
     (pophint:make-hint-with-inch-forward :limit endpt)))
 
 ;;;###autoload
-(defun* pophint-region:narrow-or-wide (&key backward-p narrow-limit action-name action use-pos-tip)
+(cl-defun pophint-region:narrow-or-wide (&key backward-p narrow-limit action-name action use-pos-tip)
   (let ((pophint:select-source-method 'nil)
         (pophint:switch-source-delay 0)
         (pophint-region--user-start (point))

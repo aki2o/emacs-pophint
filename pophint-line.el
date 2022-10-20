@@ -20,7 +20,7 @@
   :description "Part of `font-lock-comment-face' in line"
   :source '((shown . "Cmt")
             (method . (lambda ()
-                        (loop while (re-search-forward "\\s<+" nil t)
+                        (cl-loop while (re-search-forward "\\s<+" nil t)
                               for startpt = (progn (skip-syntax-forward " ") (point))
                               for endpt = (when (and (eq (get-text-property (point) 'face) 'font-lock-comment-face)
                                                      (re-search-forward "\\s-*\\(\\s>+\\|$\\)"))

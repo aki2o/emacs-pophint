@@ -30,7 +30,7 @@
 (define-obsolete-function-alias 'pophint-config:isearch-yank-region 'pophint-isearch:yank-region "1.1.0")
 
 ;;;###autoload
-(defmacro pophint-isearch:replace-to-yank-region (command)
+(cl-defmacro pophint-isearch:replace-to-yank-region (command)
   "Set advice to replace COMMAND with `pophint-isearch:yank-region'."
   (declare (indent 0))
   `(defadvice ,command (around do-pophint activate)
@@ -63,7 +63,7 @@
 
 
 ;;;###autoload
-(defmacro pophint-isearch:defcommand (command)
+(cl-defmacro pophint-isearch:defcommand (command)
   (declare (indent 0))
   (let ((fnc-sym (intern (format "pophint-isearch:%s" (symbol-name command))))
         (fnc-doc (format "Start `%s' after move to selected hint-tip point." (symbol-name command))))
@@ -120,7 +120,7 @@
                                                             (endpt (when ov (overlay-end ov)))
                                                             (value (when ov (buffer-substring-no-properties startpt endpt)))
                                                             (ret `(:startpt ,startpt :endpt ,endpt :value ,value)))
-                                                       (when ov (incf pophint-isearch--overlay-index))
+                                                       (when ov (cl-incf pophint-isearch--overlay-index))
                                                        (when startpt (goto-char startpt))
                                                        ret)))
                                          (action . point))))))
