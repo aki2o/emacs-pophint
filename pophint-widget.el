@@ -1,4 +1,3 @@
-(require 'cl-lib)
 (require 'pophint)
 
 ;;;###autoload

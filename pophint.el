@@ -137,6 +137,7 @@
 ;; Enjoy!!!
 
 
+(require 'cl-lib)
 (require 'rx)
 (require 'yaxception)
 (require 'log4e)
