@@ -10,13 +10,13 @@
 (cl-defmacro pophint-thing:advice-thing-at-point-function (function)
   "Set advice to get thing by hint-tip as substitute for COMMAND."
   (declare (indent 0))
-  `(defadvice ,function (around do-pophint activate)
-     (if (not pophint-thing:enable-on-thing-at-point)
-         ad-do-it
-       (pophint--trace "start as substitute for %s" (symbol-name ',function))
-       (setq ad-return-value
-             (pophint:do-flexibly :action-name "SelectThing"
-                                  :action 'value)))))
+  (let ((advice-name (intern (format "%s-advice-filter-return-do-pophint" command))))
+    `(defun ,advice-name (value)
+       (if (not pophint-thing:enable-on-thing-at-point)
+           value
+         (pophint--trace "start as substitute for %s" (symbol-name ',function))
+         (pophint:do-flexibly :action-name "SelectThing" :action 'value)))
+    `(advice-add ',command :filter-return ',advice-name)))
 (define-obsolete-function-alias 'pophint-config:set-thing-at-point-function 'pophint-thing:advice-thing-at-point-function "1.1.0")
 
 ;;;###autoload
