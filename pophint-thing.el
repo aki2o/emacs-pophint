@@ -11,12 +11,13 @@
   "Set advice to get thing by hint-tip as substitute for COMMAND."
   (declare (indent 0))
   (let ((advice-name (intern (format "%s-advice-filter-return-do-pophint" function))))
-    `(defun ,advice-name (value)
-       (if (not pophint-thing:enable-on-thing-at-point)
-           value
-         (pophint--trace "start as substitute for %s" (symbol-name ',function))
-         (pophint:do-flexibly :action-name "SelectThing" :action 'value)))
-    `(advice-add ',function :filter-return ',advice-name)))
+    `(progn
+       (defun ,advice-name (value)
+         (if (not pophint-thing:enable-on-thing-at-point)
+             value
+           (pophint--trace "start as substitute for %s" (symbol-name ',function))
+           (pophint:do-flexibly :action-name "SelectThing" :action 'value)))
+       (advice-add ',function :filter-return ',advice-name))))
 (define-obsolete-function-alias 'pophint-config:set-thing-at-point-function 'pophint-thing:advice-thing-at-point-function "1.1.0")
 
 ;;;###autoload
