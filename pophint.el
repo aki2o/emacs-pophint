@@ -137,7 +137,7 @@
 ;; Enjoy!!!
 
 
-(require 'cl-lib)
+(eval-when-compile (require 'cl-lib))
 (require 'rx)
 (require 'yaxception)
 (require 'log4e)
