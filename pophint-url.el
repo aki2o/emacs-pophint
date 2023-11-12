@@ -20,7 +20,8 @@
   :description "Format like URL or Filepath."
   :source '((shown . "Url/Path")
             (method . (lambda ()
-                        (let* ((u (save-excursion
+                        (let* ((ffap-machine-p-known 'accept)
+                               (u (save-excursion
                                     (when (re-search-forward pophint-url--regexp-url nil t)
                                       (let ((startpt (match-beginning 0))
                                             (endpt (match-end 0))
