@@ -30,7 +30,7 @@
                                         `(:startpt ,startpt :endpt ,endpt :value ,value)))))
                                (f (when (functionp 'ffap-guesser)
                                     (save-excursion
-                                      (loop while (re-search-forward pophint-url--regexp-file-head nil t)
+                                      (cl-loop while (re-search-forward pophint-url--regexp-file-head nil t)
                                             for startpt = (match-beginning 0)
                                             for guess = (ffap-guesser)
                                             if guess

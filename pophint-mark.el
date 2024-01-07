@@ -8,7 +8,8 @@
 (make-obsolete 'pophint-config:set-automatically-when-marking 'pophint-mark:enable "1.1.0")
 
 (defcustom pophint-mark:yank-immediately-on-marking-p nil
-  "Whether yank immediately when select hint-tip after `set-mark-command' or `cua-set-mark'."
+  "Whether to yank immediately when select hint-tip
+after `set-mark-command' or `cua-set-mark'."
   :type 'boolean
   :group 'pophint)
 (make-obsolete 'pophint-config:set-yank-immediately-when-marking 'pophint-mark:yank-immediately-on-marking-p "1.1.0")
@@ -30,15 +31,15 @@
                     (goto-char (pophint:hint-startpt hint))
                     (when pophint-mark:yank-immediately-on-marking-p
                       (kill-ring-save currpt (point)))))))
-    (case pophint-mark:direction
+    (cl-case pophint-mark:direction
       (forward
-       (pophint-region:narrow-or-wide :narrow-limit (point-at-eol)
+       (pophint-region:narrow-or-wide :narrow-limit (pos-eol)
                                       :use-pos-tip nil
                                       :action-name action-name
                                       :action action))
       (backward
        (pophint-region:narrow-or-wide :backward-p t
-                                      :narrow-limit (point-at-bol)
+                                      :narrow-limit (pos-bol)
                                       :use-pos-tip nil
                                       :action-name action-name
                                       :action action))

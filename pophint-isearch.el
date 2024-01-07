@@ -22,16 +22,15 @@
   (interactive)
   (isearch-yank-internal
    (lambda ()
-     (pophint-region:narrow-or-wide
-      :narrow-limit (point-at-eol)
-      :use-pos-tip nil
-      :action (lambda (hint)
-                (goto-char (pophint:hint-startpt hint))
-                (point))))))
+     (when-let ((pt (pophint-region:narrow-or-wide :narrow-limit (pos-eol)
+                                                   :use-pos-tip nil
+                                                   :action 'point)))
+       (goto-char pt)
+       (point)))))
 (define-obsolete-function-alias 'pophint-config:isearch-yank-region 'pophint-isearch:yank-region "1.1.0")
 
 ;;;###autoload
-(defmacro pophint-isearch:replace-to-yank-region (command)
+(cl-defmacro pophint-isearch:replace-to-yank-region (command)
   "Set advice to replace COMMAND with `pophint-isearch:yank-region'."
   (declare (indent 0))
   `(defadvice ,command (around do-pophint activate)
@@ -64,7 +63,7 @@
 
 
 ;;;###autoload
-(defmacro pophint-isearch:defcommand (command)
+(cl-defmacro pophint-isearch:defcommand (command)
   (declare (indent 0))
   (let ((fnc-sym (intern (format "pophint-isearch:%s" (symbol-name command))))
         (fnc-doc (format "Start `%s' after move to selected hint-tip point." (symbol-name command))))
@@ -104,28 +103,28 @@
 
 
 (defadvice isearch-exit (before do-pophint disable)
-  (when pophint-isearch:start-on-isearch-exit-p
-    (pophint:do :not-highlight t
-                :not-switch-window t
-                :source '((shown . "Cand")
-                          (init . (lambda ()
-                                    (setq pophint-isearch--overlay-index 0)))
-                          (method . (lambda ()
-                                      (pophint--trace "overlay count:[%s] index:[%s]"
-                                                      (length isearch-lazy-highlight-overlays)
-                                                      pophint-isearch--overlay-index)
-                                      (let* ((idx pophint-isearch--overlay-index)
-                                             (ov (when (< idx (length isearch-lazy-highlight-overlays))
-                                                   (nth idx isearch-lazy-highlight-overlays)))
-                                             (startpt (when ov (overlay-start ov)))
-                                             (endpt (when ov (overlay-end ov)))
-                                             (value (when ov (buffer-substring-no-properties startpt endpt)))
-                                             (ret `(:startpt ,startpt :endpt ,endpt :value ,value)))
-                                        (when ov (incf pophint-isearch--overlay-index))
-                                        (when startpt (goto-char startpt))
-                                        ret)))
-                          (action . (lambda (hint)
-                                      (goto-char (pophint:hint-startpt hint))))))))
+  (when-let ((pt (when pophint-isearch:start-on-isearch-exit-p
+                   (pophint:do :not-highlight t
+                               :not-switch-window t
+                               :source '((shown . "Cand")
+                                         (init . (lambda ()
+                                                   (setq pophint-isearch--overlay-index 0)))
+                                         (method . (lambda ()
+                                                     (pophint--trace "overlay count:[%s] index:[%s]"
+                                                                     (length isearch-lazy-highlight-overlays)
+                                                                     pophint-isearch--overlay-index)
+                                                     (let* ((idx pophint-isearch--overlay-index)
+                                                            (ov (when (< idx (length isearch-lazy-highlight-overlays))
+                                                                  (nth idx isearch-lazy-highlight-overlays)))
+                                                            (startpt (when ov (overlay-start ov)))
+                                                            (endpt (when ov (overlay-end ov)))
+                                                            (value (when ov (buffer-substring-no-properties startpt endpt)))
+                                                            (ret `(:startpt ,startpt :endpt ,endpt :value ,value)))
+                                                       (when ov (cl-incf pophint-isearch--overlay-index))
+                                                       (when startpt (goto-char startpt))
+                                                       ret)))
+                                         (action . point))))))
+    (goto-char pt)))
 
 (defadvice anything-c-moccur-from-isearch (around pophint:disable disable)
   (let ((exitconf pophint-isearch:start-on-isearch-exit-p))

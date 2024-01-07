@@ -14,7 +14,8 @@
 (make-obsolete 'pophint-config:set-automatically-when-e2wm-array 'pophint-e2wm:enable "1.1.0")
 
 (defcustom pophint-e2wm:array-quit-immediately t
-  "Whether do `e2wm:dp-array-goto-prev-pst-command' immediately in array perspective when selection."
+  "Whether to do `e2wm:dp-array-goto-prev-pst-command' immediately
+in array perspective."
   :type 'boolean
   :group 'pophint)
 (make-obsolete 'pophint-config:set-goto-immediately-when-e2wm-array 'pophint-e2wm:array-quit-immediately "1.1.0")

@@ -17,10 +17,10 @@
 (defvar pophint-eww--eww-buffer-name "*eww*")
 
 (defun pophint-eww--do-anchor-sentinel (method)
-  (let ((pophint-eww:use-new-tab (case method
-                                   ('open   nil)
-                                   ('tab    t)
-                                   ('invert (not pophint-eww:use-new-tab)))))
+  (let ((pophint-eww:use-new-tab (cl-case method
+                                   (open   nil)
+                                   (tab    t)
+                                   (invert (not pophint-eww:use-new-tab)))))
     (pophint:do-eww-anchor)))
 
 ;;;###autoload
