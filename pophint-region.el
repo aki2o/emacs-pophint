@@ -45,7 +45,7 @@
   "Forward region by selecting hint-tip."
   (interactive)
   (pophint-region:narrow-or-wide
-   :narrow-limit (point-at-eol)
+   :narrow-limit (pos-eol)
    :use-pos-tip t
    :action (lambda (hint) (goto-char (pophint:hint-startpt hint)))))
 (define-obsolete-function-alias 'pophint-config:forward-region 'pophint-region:forward "1.1.0")
@@ -56,7 +56,7 @@
   (interactive)
   (pophint-region:narrow-or-wide
    :backward-p t
-   :narrow-limit (point-at-bol)
+   :narrow-limit (pos-bol)
    :use-pos-tip t
    :action (lambda (hint) (goto-char (pophint:hint-startpt hint)))))
 (define-obsolete-function-alias 'pophint-config:backward-region 'pophint-region:backward "1.1.0")
@@ -66,7 +66,7 @@
   "Kill region by selecting hint-tip."
   (interactive)
   (pophint-region:narrow-or-wide
-   :narrow-limit (point-at-eol)
+   :narrow-limit (pos-eol)
    :use-pos-tip t
    :action-name "kill-region"
    :action (lambda (hint) (kill-region (point) (pophint:hint-startpt hint)))))
@@ -78,7 +78,7 @@
   (interactive)
   (pophint-region:narrow-or-wide
    :backward-p t
-   :narrow-limit (point-at-bol)
+   :narrow-limit (pos-bol)
    :use-pos-tip t
    :action-name "kill-region"
    :action (lambda (hint) (kill-region (pophint:hint-startpt hint) (point)))))
@@ -89,7 +89,7 @@
   "Delete region by selecting hint-tip."
   (interactive)
   (pophint-region:narrow-or-wide
-   :narrow-limit (point-at-eol)
+   :narrow-limit (pos-eol)
    :use-pos-tip t
    :action-name "delete-region"
    :action (lambda (hint) (delete-region (point) (pophint:hint-startpt hint)))))
@@ -100,7 +100,7 @@
   (interactive)
   (pophint-region:narrow-or-wide
    :backward-p t
-   :narrow-limit (point-at-bol)
+   :narrow-limit (pos-bol)
    :use-pos-tip t
    :action-name "delete-region"
    :action (lambda (hint) (delete-region (pophint:hint-startpt hint) (point)))))

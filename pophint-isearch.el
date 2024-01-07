@@ -22,7 +22,7 @@
   (interactive)
   (isearch-yank-internal
    (lambda ()
-     (when-let ((pt (pophint-region:narrow-or-wide :narrow-limit (point-at-eol)
+     (when-let ((pt (pophint-region:narrow-or-wide :narrow-limit (pos-eol)
                                                    :use-pos-tip nil
                                                    :action 'point)))
        (goto-char pt)

@@ -5,8 +5,8 @@
 ;; Author: Hiroaki Otsu <ootsuhiroaki@gmail.com>
 ;; Keywords: popup
 ;; URL: https://github.com/aki2o/emacs-pophint
-;; Version: 1.3.1
-;; Package-Requires: ((log4e "0.3.3") (yaxception "0.3"))
+;; Version: 1.4.0
+;; Package-Requires: ((log4e "0.4.0") (yaxception "1.0.0"))
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -22,123 +22,22 @@
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 ;;; Commentary:
-;; 
+;;
 ;; This extension provides navigation like the Vimperator Hint Mode of Firefox.
 ;; The interface has the following flow.
 ;;  1. pop-up tip about the matched point for some action which user want.
 ;;  2. do some action for the user selecting.
-;; 
-;; For more infomation, see <https://github.com/aki2o/emacs-pophint/blob/master/README.md>
-
-;;; Dependencies:
-;; 
-;; - yaxception.el ( see <https://github.com/aki2o/yaxception> )
-;; - log4e.el ( see <https://github.com/aki2o/log4e> )
-
-;;; Installation:
 ;;
-;; Put this to your load-path.
-;; And put the following lines in your .emacs or site-start.el file.
-;; 
-;; (require 'pophint)
-
-;;; Configuration:
-;; 
-;; ;; Key Binding
-;; (define-key global-map (kbd "C-;") 'pophint:do-flexibly)
-;; (define-key global-map (kbd "C-+") 'pophint:do)
-;; (define-key global-map (kbd "M-;") 'pophint:redo)
-;; (define-key global-map (kbd "C-M-;") 'pophint:do-interactively)
-;; 
-;; For more information, see Configuration section in <https://github.com/aki2o/emacs-pophint/wiki>
-
-;;; Customization:
-;; 
-;; [EVAL] (autodoc-document-lisp-buffer :type 'user-variable :prefix "pophint:" :docstring t)
-;; `pophint:popup-chars'
-;; Characters for pop-up hint.
-;; `pophint:select-source-chars'
-;; Characters for selecting source.
-;; `pophint:select-source-method'
-;; Method to select source.
-;; `pophint:switch-source-char'
-;; Character for switching source used to pop-up.
-;; `pophint:switch-source-reverse-char'
-;; Character for switching source used to pop-up in reverse.
-;; `pophint:switch-source-delay'
-;; Second for delay to switch source used to pop-up.
-;; `pophint:switch-source-selectors'
-;; List of dedicated selector for source.
-;; `pophint:switch-direction-char'
-;; Character for switching direction of pop-up.
-;; `pophint:switch-direction-reverse-char'
-;; Character for switching direction of pop-up in reverse.
-;; `pophint:switch-window-char'
-;; Character for switching window of pop-up.
-;; `pophint:popup-max-tips'
-;; Maximum counts of pop-up hint.
-;; `pophint:default-require-length'
-;; Default minimum length of matched text for pop-up.
-;; `pophint:switch-direction-p'
-;; Whether switch direction of pop-up.
-;; `pophint:do-allwindow-p'
-;; Whether do pop-up at all windows.
-;; `pophint:use-pos-tip'
-;; Whether use pos-tip.el to show prompt.
-;; 
-;;  *** END auto-documentation
-
-;;; API:
-;; 
-;; [EVAL] (autodoc-document-lisp-buffer :type 'macro :prefix "pophint:" :docstring t)
-;; `pophint:defsource'
-;; Define the variable and command to pop-up hint-tip by using given source.
-;; `pophint:defaction'
-;; Define the action that called when finish hint-tip selection and the command using it.
-;; `pophint:defsituation'
-;; Define the command to pop-up hint-tip in SITUATION.
-;; `pophint:set-allwindow-command'
-;; Define advice to FUNC for doing pop-up at all windows.
-;; `pophint:set-not-allwindow-command'
-;; Define advice to FUNC for doing pop-up at one window.
-;; 
-;;  *** END auto-documentation
-;; [EVAL] (autodoc-document-lisp-buffer :type 'function :prefix "pophint:" :docstring t)
-;; `pophint:get-current-direction'
-;; Get current direction of searching next point for pop-up hint-tip.
-;; 
-;;  *** END auto-documentation
-;; [EVAL] (autodoc-document-lisp-buffer :type 'command :prefix "pophint:" :docstring t)
-;; `pophint:do'
-;; Do pop-up hint-tip using given source on target to direction.
-;; `pophint:do-flexibly'
-;; Do pop-up hint-tip using source in `pophint:sources'.
-;; `pophint:do-interactively'
-;; Do pop-up hint-tip asking about what to do after select hint-tip.
-;; `pophint:do-situationally'
-;; Do pop-up hint-tip for SITUATION.
-;; `pophint:redo'
-;; Redo last pop-up hint-tip using any sources.
-;; `pophint:toggle-use-pos-tip'
-;; Toggle the status of `pophint:use-pos-tip'.
-;; `pophint:delete-last-hints'
-;; Delete last hint-tip.
-;; 
-;;  *** END auto-documentation
-;; [Note] Functions and variables other than listed above, Those specifications may be changed without notice.
-
-;;; Tested On:
-;; 
-;; - Emacs ... GNU Emacs 23.3.1 (i386-mingw-nt5.1.2600) of 2011-08-15 on GNUPACK
-;; - yaxception.el ... Version 0.3
-;; - log4e.el ... Version 0.2.0
-
-
+;; For detail, see <https://github.com/aki2o/emacs-pophint/blob/master/README.md>
+;; For configuration, see Configuration section in <https://github.com/aki2o/emacs-pophint/wiki>
+;;
 ;; Enjoy!!!
 
+;;; Code:
 
-(eval-when-compile (require 'cl-lib))
+(require 'cl-lib)
 (require 'rx)
+(require 'mode-local)
 (require 'yaxception)
 (require 'log4e)
 (require 'pos-tip nil t)
@@ -163,11 +62,14 @@
   "Method to select source.
 
 This value is one of the following symbols.
- - use-source-char ... Push the key bound to each of sources from `pophint:select-source-chars'
-                       without pushing `pophint:switch-source-char'.
- - use-popup-char  ... Push the key bound to each of sources from `pophint:popup-chars'
-                       after pushing `pophint:switch-source-char'.
- - nil             ... Push `pophint:switch-source-char' only."
+ - use-source-char
+     Push the key bound to each of sources from `pophint:select-source-chars'
+     without pushing `pophint:switch-source-char'.
+ - use-popup-char
+     Push the key bound to each of sources from `pophint:popup-chars'
+     after pushing `pophint:switch-source-char'.
+ - nil
+     Push `pophint:switch-source-char' only."
   :type '(choice (const use-source-char)
                  (const use-popup-char)
                  (const nil))
@@ -194,7 +96,7 @@ If nil, it means not delay."
   "List of dedicated selector for source.
 
 Example:
- '((\"Quoted\"   . \"q\")
+ \\='((\"Quoted\"   . \"q\")
    (\"Url/Path\" . \"u\"))
 "
   :type '(repeat (cons string string))
@@ -385,7 +287,7 @@ If nil, it means limitless."
                        (let* ((startpt (min (save-excursion
                                               (goto-char (window-start))
                                               (forward-line 1)
-                                              (while (and (< (- (point-at-eol) (point)) (window-hscroll))
+                                              (while (and (< (- (pos-eol) (point)) (window-hscroll))
                                                           (< (point) (point-max)))
                                                 (forward-line 1))
                                               (+ (point) (window-hscroll)))
@@ -625,7 +527,7 @@ If nil, it means limitless."
       (define-key temp-global-map [tool-bar] (lookup-key old-global-map [tool-bar]))
       (when (current-local-map)
         (define-key overriding-terminal-local-map [menu-bar] (lookup-key (current-local-map) [menu-bar])))
-      (yaxception:$~
+      (yaxception:$
         (yaxception:try
           (use-global-map temp-global-map)
           (clear-this-command-keys)
@@ -799,7 +701,7 @@ If nil, it means limitless."
         (when (or (not (functionp wndchker))
                   (funcall wndchker (window-buffer)))
           (save-restriction
-            (yaxception:$~
+            (yaxception:$
               (yaxception:try (narrow-to-region
                                (if (eq direction 'forward) (point) (window-start))
                                (if (eq direction 'backward) (point) (window-end))))
@@ -816,7 +718,7 @@ If nil, it means limitless."
                     with lastpt = 0
                     with cnt = 0
                     with mtdret
-                    while (and (yaxception:$~
+                    while (and (yaxception:$
                                  (yaxception:try
                                    (cond (srchfnc (setq mtdret (funcall srchfnc)))
                                          (t       (re-search-forward re nil t))))
@@ -856,7 +758,7 @@ If nil, it means limitless."
   (pophint--trace "start show hint tips. count:[%s] not-highlight:[%s] tip-face:[%s]"
                   (length hints) not-highlight tip-face)
   (pophint:delete-last-hints)
-  (yaxception:$~
+  (yaxception:$
     (yaxception:try
       (cl-loop initially (progn
                         (copy-face (or tip-face 'pophint:tip-face) 'pophint--minibuf-tip-face)
@@ -939,7 +841,7 @@ If nil, it means limitless."
               (funcall basic-getter window)))))))
 
 (cl-defun pophint--event-loop (hints cond &optional (inputed "") source-selection)
-  (yaxception:$~
+  (yaxception:$
     (yaxception:try
       (if (and (= (length hints) 1)
                (not (string= inputed "")))
@@ -1153,62 +1055,72 @@ If nil, it means limitless."
 (cl-defmacro pophint:defsource (&key name description source)
   "Define the variable and command to pop-up hint-tip by using given source.
 
-Arguments:
-NAME is string. It's used for define variable and command as part of the name.
-DESCRIPTION is string. It's used for define variable as part of the docstring.
+NAME is string. It is used for define variable and command as part of the name.
+DESCRIPTION is string. It is used for define variable as part of the docstring.
 SOURCE is alist. The member is the following.
 
- - shown         ... It's string to use for message in minibuffer when get user input.
-                     If nil, its value is NAME.
-                 
- - regexp        ... It's string to use for finding next point of pop-up.
-                     If nil, its value is `pophint--default-search-regexp'.
-                     If exist group of matches, next point is beginning of group 1, else it's beginning of group 0.
-                 
- - requires      ... It's integer.
-                     It's minimum length of matched text as next point.
-                     If nil, its value is 0.
-                 
- - limit         ... It's integer.
-                     If non-nil, replace `pophint:popup-max-tips' with it while using the source.
-                 
- - action        ... It's function to call when finish hint-tip selection.
-                     If nil, its value is `pophint--default-action'.
-                     It receive the object of `pophint:hint' selected by user.
-                     Also it accepts one of the symbols 'value, 'point or 'hints, and returns
-                       - value ... `pophint:hint-value' of the selected
-                       - point ... `pophint:hint-startpt' of the selected
-                       - hint  ... `pophint:hint' as the selected
-                 
- - method        ... It's function to find next point of pop-up.
-                     If nil, its value is `re-search-forward', and regexp is used.
-                 
- - init          ... It's function to call before start to find pop-up point in each of window/direction.
-                 
- - highlight     ... It's t or nil. Default is t.
-                     If nil, don't highlight matched text when pop-up hint.
-                 
- - dedicated     ... It's symbol or list of symbol means the particular situation that SOURCE is dedicated for.
-                     If non-nil, added to `pophint:dedicated-sources' which has relation with `pophint:do-situationally'.
+ - shown
+     String to use for message in minibuffer when get user input.
+     If nil, its value is NAME.
 
- - activebufferp ... It's function to call for checking if SOURCE is activated in the buffer.
-                     It's required with 'dedicated' option.
-                     It receives a buffer object and
-                     needs to return non-nil if the buffer is the target of itself.
+ - regexp
+     String to use for finding next point of pop-up.
+     If nil, its value is `pophint--default-search-regexp'.
+     If exist group of matches, next point is beginning of group 1,
+      else it is beginning of group 0.
 
- - tip-face-attr ... It's plist for customize of `pophint:tip-face' temporarily.
+ - requires
+     Integer of minimum length of matched text as next point.
+     If nil, its value is 0.
+
+ - limit
+     Integer to replace `pophint:popup-max-tips' with it.
+
+ - action
+     Function to be called when finish hint-tip selection.
+     If nil, its value is `pophint--default-action'.
+     It receive the object of `pophint:hint' selected by user.
+     Also it accepts one of the following symbols, and returns
+       - value : `pophint:hint-value' of the selected
+       - point : `pophint:hint-startpt' of the selected
+       - hint  : `pophint:hint' as the selected
+
+ - method
+     Function to find next point of pop-up.
+     If nil, its value is `re-search-forward', and regexp is used.
+
+ - init
+     Function to be called before finding pop-up points
+      for each of window/direction.
+
+ - highlight
+     Boolean. Default is t.
+     If nil, don't highlight matched text when pop-up hint.
+
+ - dedicated
+     Symbol or list to mean the situation that SOURCE is dedicated for.
+     If non-nil, added to `pophint:dedicated-sources'.
+
+ - activebufferp
+     Function to call for checking if SOURCE is activated in the buffer.
+     It is required with `dedicated' option.
+     It receives a buffer object and
+      needs to return non-nil if the buffer is the target of itself.
+
+ - tip-face-attr
+     It is plist for customize of `pophint:tip-face' temporarily.
 
 Example:
  (pophint:defsource :name \"sexp-head\"
                     :description \"Head word of sexp.\"
-                    :source '((shown . \"SexpHead\")
+                    :source \\='((shown . \"SexpHead\")
                               (regexp . \"(+\\([^() \t\n]+\\)\")
                               (requires . 1)))
 "
   (declare (indent 0))
   (let* ((symnm (downcase (replace-regexp-in-string " +" "-" name)))
          (var-sym (intern (format "pophint:source-%s" symnm)))
-         (var-doc (format "Source for pop-up hint-tip of '%s'.\n\nDescription:\n%s"
+         (var-doc (format "Source for pop-up hint-tip of %s.\n\nDescription:\n%s"
                           name (or description "Not documented.")))
          (fnc-sym (intern (format "pophint:do-%s" symnm)))
          (fnc-doc (format "Do pop-up hint-tip using `%s'." var-sym)))
@@ -1227,12 +1139,11 @@ Example:
 
 ;;;###autoload
 (cl-defmacro pophint:defaction (&key key name description action)
-  "Define the action that called when finish hint-tip selection and the command using it.
+  "Define the action to be called when finish hint-tip selection.
 
-Arguments:
-KEY is string. It's one character. It's the key when read user input by `pophint:do-interactively'.
-NAME is string. It's used for define command as part of the name and show message in minibuffer when get user input.
-DESCRIPTION is string. It's used for define command as part of the docstring.
+KEY is string of one character to input on `pophint:do-interactively'.
+NAME is string to be part of the command name and shown on user input.
+DESCRIPTION is string to be part of the docstring of the command.
 ACTION is function. For detail, see action of SOURCE for `pophint:defsource'.
 
 Example:
@@ -1269,8 +1180,7 @@ Example:
 (cl-defmacro pophint:defsituation (situation)
   "Define the command to pop-up hint-tip in SITUATION.
 
-Arguments:
-SITUATION is symbol. It's used for finding the sources that is dedicated
+SITUATION is symbol. It is used for finding the sources that is dedicated
 for SITUATION from `pophint:dedicated-sources'.
 
 Example:
@@ -1290,7 +1200,9 @@ Example:
 (cl-defmacro pophint:set-allwindow-command (func)
   "Define advice to FUNC for doing pop-up at all windows.
 
-FUNC is symbol not quoted. e.g. (pophint:set-allwindow-command pophint:do-flexibly)"
+FUNC is symbol not quoted.
+
+e.g. (pophint:set-allwindow-command pophint:do-flexibly)"
   `(defadvice ,func (around pophint-allwindow activate)
      (let ((pophint--enable-allwindow-p t))
        ad-do-it)))
@@ -1299,7 +1211,9 @@ FUNC is symbol not quoted. e.g. (pophint:set-allwindow-command pophint:do-flexib
 (cl-defmacro pophint:set-not-allwindow-command (func)
   "Define advice to FUNC for doing pop-up at one window.
 
-FUNC is symbol not quoted. e.g. (pophint:set-not-allwindow-command pophint:do-flexibly)"
+FUNC is symbol not quoted.
+
+e.g. (pophint:set-not-allwindow-command pophint:do-flexibly)"
   `(defadvice ,func (around pophint-not-allwindow activate)
      (let ((pophint--disable-allwindow-p t))
        ad-do-it)))
@@ -1419,19 +1333,37 @@ FUNC is symbol not quoted. e.g. (pophint:set-not-allwindow-command pophint:do-fl
 SOURCE is alist or symbol of alist. About its value, see `pophint:defsource'.
  If nil, its value is the first of SOURCES or `pophint--default-source'.
  If non-nil, `pophint--default-source' isn't used for SOURCES.
-SOURCES is list of SOURCE. If this length more than 1, enable switching SOURCE when pop-up hint.
-ACTION is function or symbol. About this, see action of SOURCE for `pophint:defsource'. If nil, it's used.
-ACTION-NAME is string. About this, see name of `pophint:defaction'.
-DIRECTION is symbol. The allowed value is the following.
- - forward  ... seek the pop-up point moving forward until `pophint:popup-max-tips'.
- - backward ... seek the pop-up point moving backward until `pophint:popup-max-tips'.
- - around   ... seek the pop-up point moving both until half of `pophint:popup-max-tips'.
+
+SOURCES is list of SOURCE.
+ If this length more than 1, enable switching SOURCE when pop-up hint.
+
+ACTION is function or symbol.
+ About this, see action of SOURCE for `pophint:defsource'. If nil, it's used.
+
+ACTION-NAME is string.
+ About this, see name of `pophint:defaction'.
+
+DIRECTION is symbol to be strategy of finding the pop-up points.
+ - forward  : moving forward until `pophint:popup-max-tips'.
+ - backward : moving backward until `pophint:popup-max-tips'.
+ - around   : moving both until half of `pophint:popup-max-tips'.
  If nil, enable switching DIRECTION when pop-up hint.
-NOT-HIGHLIGHT is t or nil. If non-nil, don't highlight matched text when pop-up hint.
-WINDOW is window. find next point of pop-up in the window. If nil, its value is `selected-window'.
-NOT-SWITCH-WINDOW is t or nil. If non-nil, disable switching window when select shown hint.
-ALLWINDOW is t or nil. If non-nil, pop-up at all windows in frame.
-USE-POS-TIP is t or nil. If omitted, inherit `pophint:use-pos-tip'.
+
+NOT-HIGHLIGHT is t or nil.
+ If non-nil, don't highlight matched text when pop-up hint.
+
+WINDOW is window to find next point of pop-up in the window.
+ If nil, its value is `selected-window'.
+
+NOT-SWITCH-WINDOW is t or nil.
+ If non-nil, disable switching window when select shown hint.
+
+ALLWINDOW is t or nil.
+ If non-nil, pop-up at all windows in frame.
+
+USE-POS-TIP is t or nil.
+ If omitted, inherit `pophint:use-pos-tip'.
+
 TIP-FACE-ATTR is plist for customize of `pophint:tip-face' temporarily."
   (interactive)
   (let ((pophint--resumed-input-method current-input-method))
@@ -1548,7 +1480,7 @@ For detail, see `pophint:do'."
 (defun pophint:do-situationally (situation)
   "Do pop-up hint-tip for SITUATION.
 
-SITUATION is symbol used for finding active sources from `pophint:dedicated-sources'."
+SITUATION is symbol to be defined on `pophint:defsituation'."
   (interactive
    (list (intern
           (completing-read "Select situation: "

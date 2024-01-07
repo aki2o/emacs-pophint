@@ -22,7 +22,8 @@
 
 ;;;###autoload
 (cl-defmacro pophint-thing:defcommand-noadvice (command)
-  "Define a command named `pophint-thing:just-COMMAND' to do COMMAND without `pophint-thing:enable-on-thing-at-point'."
+  "Define a command named `pophint-thing:just-COMMAND' to do COMMAND
+without `pophint-thing:enable-on-thing-at-point'."
   (declare (indent 0))
   (let ((func-sym (intern (format "pophint-thing:just-%s" (symbol-name command))))
         (action-name (mapconcat 'identity

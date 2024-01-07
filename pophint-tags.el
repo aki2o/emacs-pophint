@@ -7,7 +7,8 @@
 (cl-defmacro pophint-tags:advice-command (command &key (point-arg-index nil))
   "Set advice to move the point selected hint-tip before COMMAND.
 
-If COMMAND receives point by interactive, give the argument index as POINT-ARG-INDEX."
+If COMMAND receives the point by interactive,
+  give the argument index as POINT-ARG-INDEX."
   (declare (indent 0))
   (let ((advice-name (intern (format "%s-advice-around-do-pophint" command))))
     `(progn

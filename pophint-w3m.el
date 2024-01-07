@@ -16,9 +16,9 @@
 
 (defun pophint-w3m--do-anchor-sentinel (method)
   (let ((pophint-w3m:use-new-tab (cl-case method
-                                   ('open   nil)
-                                   ('tab    t)
-                                   ('invert (not pophint-w3m:use-new-tab)))))
+                                   (open   nil)
+                                   (tab    t)
+                                   (invert (not pophint-w3m:use-new-tab)))))
     (pophint:do-w3m-anchor)))
 
 ;;;###autoload
