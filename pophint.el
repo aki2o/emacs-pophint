@@ -1376,6 +1376,7 @@ TIP-FACE-ATTR is plist for customize of `pophint:tip-face' temporarily."
          "start do.\ndirection:%s\nnot-highlight:%s\nwindow:%s\nnot-switch-window:%s\nallwindow:%s\naction-name:%s\naction:%s\nsource:%s\nsources:%s"
          direction not-highlight window not-switch-window allwindow action-name action source sources)
         (let* (;; (current-input-method nil)
+               (case-fold-search nil)
                (allwindow-p (and (or allwindow
                                      pophint--enable-allwindow-p
                                      pophint:do-allwindow-p)
